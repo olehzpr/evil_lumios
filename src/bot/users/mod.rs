@@ -2,8 +2,8 @@ use diesel::prelude::*;
 use evil_lumios::State;
 
 use crate::db::{
-    connection,
     models::{NewUser, User},
+    StateWithConnection,
 };
 
 pub async fn create_user_if_not_exists(
@@ -15,7 +15,7 @@ pub async fn create_user_if_not_exists(
         return;
     }
     let user = user.as_ref().unwrap();
-    let conn = &mut connection(&state).await;
+    let conn = &mut state.conn().await;
     let existing_user = diesel::sql_query("SELECT * FROM users WHERE id = $1")
         .bind::<diesel::sql_types::Integer, _>(user.id.0 as i32)
         .get_result::<User>(conn)

@@ -2,12 +2,12 @@ use diesel::prelude::*;
 use evil_lumios::State;
 
 use crate::db::{
-    connection,
     models::{Chat, NewChat},
+    StateWithConnection,
 };
 
 pub async fn create_chat_if_not_exists(state: &State, chat: &teloxide::types::Chat) {
-    let conn = &mut connection(&state).await;
+    let conn = &mut state.conn().await;
     let existing_chat = diesel::sql_query("SELECT * FROM chats WHERE id = $1")
         .bind::<diesel::sql_types::Integer, _>(chat.id.0 as i32)
         .get_result::<Chat>(conn)

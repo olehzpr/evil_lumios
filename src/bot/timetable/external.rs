@@ -4,7 +4,7 @@ use teloxide::{prelude::Requester, types::Message, Bot};
 
 use crate::{
     config::state::{BotDialogue, StateMachine},
-    db::connection,
+    db::StateWithConnection,
     schema,
 };
 
@@ -30,7 +30,7 @@ pub async fn receive_timetable_entry_link(
                     .await?;
                 return Ok(());
             }
-            let conn = &mut connection(&state).await;
+            let conn = &mut state.conn().await;
             diesel::update(schema::timetable_entries::table.find(id))
                 .set(schema::timetable_entries::link.eq(link))
                 .execute(conn)?;

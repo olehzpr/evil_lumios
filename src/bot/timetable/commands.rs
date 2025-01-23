@@ -1,29 +1,30 @@
 use std::vec;
 
-use diesel::{ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use evil_lumios::Event;
 use teloxide::{types::Message, Bot};
 
 use crate::{
     bot::{
         externsions::{ExtendedBot, Msg},
-        ui::{self, extedned_timetable_entry_view},
+        ui::{self},
         utils::params::get_param,
     },
     db::{
-        connection,
-        models::{NewTimetable, NewTimetableEntry, Timetable, TimetableEntry},
+        models::{NewTimetable, NewTimetableEntry, Timetable},
+        timetable::{
+            get_current_entry, get_full_timetable, get_next_entry, get_today_timetable,
+            get_tomorrow_timetable, get_week_timetable,
+        },
+        StateWithConnection,
     },
     schema, State,
 };
 
-use super::{
-    utils::{get_current_day, get_current_week, get_day_name},
-    HandlerResult,
-};
+use super::HandlerResult;
 
 pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut connection(&state).await;
+    let conn = &mut state.conn().await;
     let group_name = get_param(
         &msg,
         "Ви повинні вказати код групи. Наприклад /import ІП-32",
@@ -108,154 +109,65 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
 }
 
 pub async fn today(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let current_week = get_current_week();
-    let current_day = get_current_day();
-    let conn = &mut connection(&state).await;
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
-        )
-        .filter(schema::timetables::chat_id.eq(&msg.chat.id.to_string()))
-        .filter(schema::timetable_entries::week.eq(current_week as i32))
-        .filter(schema::timetable_entries::day.eq(current_day as i32))
-        .select(schema::timetable_entries::all_columns)
-        .load::<TimetableEntry>(conn)?;
-    let mut response = String::new();
-    for entry in entries {
-        response.push_str(&ui::small_timetable_entry_view(&entry, false));
+    let conn = &mut state.conn().await;
+    let entries = get_today_timetable(conn, &msg.chat.id.to_string()).await?;
+    let mut res = ui::timetable::day_view(entries);
+    if res.is_empty() {
+        res = "Сьогодні немає жодних пар. Можна відпочивати".to_string();
     }
     state.sender.send(Event::DeleteMessage {
         chat_id: msg.chat.id,
         message_id: msg.id,
     })?;
-    bot.send_extended(Msg::Temp(msg.chat, &response, state.sender.clone()))
+    bot.send_extended(Msg::Temp(msg.chat, &res, state.sender.clone()))
         .await?;
     Ok(())
 }
 
 pub async fn tomorrow(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let current_week = get_current_week();
-    let next_day = (get_current_day() + 1) % 7;
-    let conn = &mut connection(&state).await;
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
-        )
-        .filter(schema::timetables::chat_id.eq(&msg.chat.id.to_string()))
-        .filter(schema::timetable_entries::week.eq(current_week as i32))
-        .filter(schema::timetable_entries::day.eq(next_day as i32))
-        .select(schema::timetable_entries::all_columns)
-        .load::<TimetableEntry>(conn)?;
-    let mut response = String::new();
-    for entry in entries {
-        response.push_str(&ui::small_timetable_entry_view(&entry, false));
-    }
-    if response.is_empty() {
-        response = "No classes tomorrow".to_string();
+    let conn = &mut state.conn().await;
+    let entries = get_tomorrow_timetable(conn, &msg.chat.id.to_string()).await?;
+    let mut res = ui::timetable::day_view(entries);
+    if res.is_empty() {
+        res = "Завтра немає жодних пар. Можна відпочивати".to_string();
     }
     state.sender.send(Event::DeleteMessage {
         chat_id: msg.chat.id,
         message_id: msg.id,
     })?;
-    bot.send_extended(Msg::Temp(msg.chat, &response, state.sender.clone()))
+    bot.send_extended(Msg::Temp(msg.chat, &res, state.sender.clone()))
         .await?;
     Ok(())
 }
 
 pub async fn week(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut connection(&state).await;
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
-        )
-        .filter(schema::timetables::chat_id.eq(&msg.chat.id.to_string()))
-        .filter(schema::timetable_entries::week.eq(get_current_week() as i32))
-        .select(schema::timetable_entries::all_columns)
-        .order((
-            schema::timetable_entries::day.asc(),
-            schema::timetable_entries::class_time.asc(),
-        ))
-        .load::<TimetableEntry>(conn)?;
-    let mut response = String::new();
-    let mut day: u8 = 0;
-    for entry in entries {
-        if entry.day == day as i32 {
-            response.push_str(&format!("\n*{}*\n", get_day_name(day)));
-            day += 1;
-        }
-        response.push_str(&ui::small_timetable_entry_view(&entry, false));
-    }
+    let conn = &mut state.conn().await;
+    let entries = get_week_timetable(conn, &msg.chat.id.to_string()).await?;
+    let res = ui::timetable::week_view(entries);
     state.sender.send(Event::DeleteMessage {
         chat_id: msg.chat.id,
         message_id: msg.id,
     })?;
-    bot.send_extended(Msg::Temp(msg.chat, &response, state.sender.clone()))
+    bot.send_extended(Msg::Temp(msg.chat, &res, state.sender.clone()))
         .await?;
     Ok(())
 }
 
 pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut connection(&state).await;
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
-        )
-        .filter(schema::timetables::chat_id.eq(&msg.chat.id.to_string()))
-        .select(schema::timetable_entries::all_columns)
-        .order((
-            schema::timetable_entries::week.asc(),
-            schema::timetable_entries::day.asc(),
-            schema::timetable_entries::class_time.asc(),
-        ))
-        .load::<TimetableEntry>(conn)?;
-    let mut response = String::new();
-    let mut day: u8 = 0;
-    let mut week: u8 = 1;
-    for entry in entries {
-        if entry.week == week as i32 {
-            response.push_str(&format!("\n*📅 Week {}*\n", week));
-            week += 1;
-            day = 0;
-        }
-        if entry.day == day as i32 {
-            response.push_str(&format!("\n*{}*\n", get_day_name(day)));
-            day += 1;
-        }
-        response.push_str(&ui::small_timetable_entry_view(&entry, true));
-    }
+    let conn = &mut state.conn().await;
+    let entries = get_full_timetable(conn, &msg.chat.id.to_string()).await?;
+    let response = ui::timetable::edit_view(entries);
     bot.send_extended(Msg::Regular(msg.chat, &response)).await?;
     Ok(())
 }
 
 pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let current_week = get_current_week();
-    let current_day = get_current_day();
-    let current_time = chrono::Utc::now().time();
-    let conn = &mut connection(&state).await;
-    let entry = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
-        )
-        .filter(schema::timetables::chat_id.eq(&msg.chat.id.to_string()))
-        .filter(schema::timetable_entries::week.eq(current_week as i32))
-        .filter(schema::timetable_entries::day.eq(current_day as i32))
-        .filter(schema::timetable_entries::class_time.ge(current_time))
-        .select(schema::timetable_entries::all_columns)
-        .order(schema::timetable_entries::class_time.asc())
-        .first::<TimetableEntry>(conn)
-        .optional()?;
+    let conn = &mut state.conn().await;
+    let entry = get_current_entry(conn, &msg.chat.id.to_string()).await?;
     match entry {
         Some(entry) => {
-            bot.send_extended(Msg::Regular(
-                msg.chat,
-                &extedned_timetable_entry_view(&entry),
-            ))
-            .await?;
+            bot.send_extended(Msg::Regular(msg.chat, &ui::timetable::entry_view(&entry)))
+                .await?;
         }
         None => {
             bot.send_extended(Msg::Regular(msg.chat, "На сьогодні заняття закінчились"))
@@ -266,31 +178,12 @@ pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
 }
 
 pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let current_week = get_current_week();
-    let current_day = get_current_day();
-    let current_time = chrono::Utc::now().time();
-    let conn = &mut connection(&state).await;
-    let entry = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
-        )
-        .filter(schema::timetables::chat_id.eq(&msg.chat.id.to_string()))
-        .filter(schema::timetable_entries::week.eq(current_week as i32))
-        .filter(schema::timetable_entries::day.eq(current_day as i32))
-        .filter(schema::timetable_entries::class_time.ge(current_time))
-        .select(schema::timetable_entries::all_columns)
-        .order(schema::timetable_entries::class_time.asc())
-        .offset(1)
-        .first::<TimetableEntry>(conn)
-        .optional()?;
+    let conn = &mut state.conn().await;
+    let entry = get_next_entry(conn, &msg.chat.id.to_string()).await?;
     match entry {
         Some(entry) => {
-            bot.send_extended(Msg::Regular(
-                msg.chat,
-                &extedned_timetable_entry_view(&entry),
-            ))
-            .await?;
+            bot.send_extended(Msg::Regular(msg.chat, &ui::timetable::entry_view(&entry)))
+                .await?;
         }
         None => {
             bot.send_extended(Msg::Regular(msg.chat, "На сьогодні заняття закінчились"))
