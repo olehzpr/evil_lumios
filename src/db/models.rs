@@ -73,7 +73,7 @@ pub struct NewTimetable<'a> {
     pub chat_id: &'a str,
 }
 
-#[derive(Queryable, Selectable, Debug)]
+#[derive(Queryable, Selectable, Debug, Clone)]
 #[diesel(table_name = timetable_entries)]
 #[diesel(check_for_backend(Pg))]
 pub struct TimetableEntry {

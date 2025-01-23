@@ -1,13 +1,72 @@
 use diesel::{
     ExpressionMethods, JoinOnDsl, OptionalExtension, PgConnection, QueryDsl, RunQueryDsl,
 };
+use serde_json::Value;
 
 use crate::{
     bot::timetable::{Day, Week},
     schema,
 };
 
-use super::models::TimetableEntry;
+use super::models::{NewTimetable, NewTimetableEntry, Timetable, TimetableEntry};
+
+pub async fn import_timetable(
+    conn: &mut PgConnection,
+    chat_id: &str,
+    timetable: Value,
+) -> anyhow::Result<()> {
+    let existing_timetable = schema::timetables::table
+        .filter(schema::timetables::chat_id.eq(chat_id))
+        .first::<Timetable>(conn)
+        .optional()?;
+    if let Some(existing_timetable) = existing_timetable {
+        diesel::delete(schema::timetable_entries::table)
+            .filter(schema::timetable_entries::timetable_id.eq(existing_timetable.id))
+            .execute(conn)?;
+        diesel::delete(schema::timetables::table)
+            .filter(schema::timetables::chat_id.eq(chat_id))
+            .execute(conn)?;
+    }
+
+    let created_timetable = diesel::insert_into(schema::timetables::table)
+        .values(NewTimetable { chat_id: chat_id })
+        .get_result::<Timetable>(conn)?;
+    let mut entries: Vec<NewTimetableEntry> = vec![];
+    for (week, schedule_key) in [
+        (Week::First, "scheduleFirstWeek"),
+        (Week::Second, "scheduleSecondWeek"),
+    ] {
+        if let Some(days) = timetable["data"][schedule_key].as_array() {
+            for (index, day) in days.iter().enumerate() {
+                if let Some(pairs) = day["pairs"].as_array() {
+                    for entry in pairs {
+                        entries.push(NewTimetableEntry {
+                            timetable_id: created_timetable.id,
+                            week: week as i32,
+                            day: index as i32,
+                            class_name: entry["name"].as_str().unwrap(),
+                            class_type: entry["tag"].as_str().unwrap(),
+                            class_time: chrono::NaiveTime::parse_from_str(
+                                entry["time"].as_str().unwrap(),
+                                "%H:%M",
+                            )
+                            .unwrap(),
+                            link: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    entries.iter().for_each(|entry| {
+        diesel::insert_into(schema::timetable_entries::table)
+            .values(entry)
+            .execute(conn)
+            .unwrap();
+    });
+
+    Ok(())
+}
 
 pub async fn get_today_timetable(
     conn: &mut PgConnection,

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use diesel::{r2d2::ConnectionManager, PgConnection};
-use teloxide::{
-    dispatching::ShutdownToken,
-    types::{ChatId, MessageId},
-};
+use teloxide::types::{ChatId, MessageId};
+
+use crate::db::models::{Timetable, TimetableEntry};
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -13,6 +13,16 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     pub sender: tokio::sync::broadcast::Sender<Event>,
     pub receiver: tokio::sync::broadcast::Receiver<Event>,
+    pub cache: DashMap<String, CacheValue>,
+}
+
+pub enum CacheValue {
+    Integer(i32),
+    Text(String),
+    List(Vec<String>),
+    Timetable(Timetable),
+    TimetableEntry(TimetableEntry),
+    TimetableEntries(Vec<TimetableEntry>),
 }
 
 #[derive(Clone, Debug)]
@@ -33,31 +43,9 @@ impl AppState {
             http_client: reqwest::Client::new(),
             sender: event_tx,
             receiver: event_rx,
+            cache: DashMap::new(),
         })
     }
-}
-
-pub enum InputCommand {
-    Exit,
-    Help,
-    Restart,
-    Unknown,
-}
-
-impl From<&str> for InputCommand {
-    fn from(input: &str) -> Self {
-        match input {
-            "exit" => Self::Exit,
-            "help" => Self::Help,
-            "restart" => Self::Restart,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-pub struct ShutdownTokens {
-    pub dispatcher_token: ShutdownToken,
-    pub shutdown_tx: tokio::sync::mpsc::Sender<()>,
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +53,10 @@ pub enum Event {
     DeleteMessage {
         chat_id: ChatId,
         message_id: MessageId,
+    },
+    Notify {
+        chat_id: ChatId,
+        entry_id: i32,
     },
     Exit,
 }

@@ -1,5 +1,5 @@
+use crate::state::State;
 use diesel::{QueryDsl, RunQueryDsl};
-use evil_lumios::State;
 use teloxide::{
     payloads::SendMessageSetters, prelude::Requester, types::Message, utils::command::BotCommands,
     Bot,

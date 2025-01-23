@@ -1,6 +1,6 @@
 use std::{env, sync::Arc, time::Duration};
 
-use evil_lumios::{Event, State};
+use crate::state::{Event, State};
 use teloxide::{prelude::Requester, Bot};
 
 pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
@@ -27,6 +27,12 @@ pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
                         .await
                         .expect("Failed to delete message");
                 });
+            }
+            Event::Notify { chat_id, entry_id } => {
+                println!(
+                    "Notify event received: chat_id: {}, entry_id: {}",
+                    chat_id, entry_id
+                );
             }
         }
     }

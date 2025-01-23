@@ -1,4 +1,4 @@
-use evil_lumios::Event;
+use crate::state::Event;
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::Requester,

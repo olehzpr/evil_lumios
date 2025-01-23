@@ -1,31 +1,74 @@
-use evil_lumios::State;
+use std::sync::Arc;
+
+use crate::state::{CacheValue, Event, State};
+use chrono::Timelike;
 use teloxide::types::ChatId;
+use tokio_cron_scheduler::{Job, JobScheduler};
 
 use crate::db::{models::TimetableEntry, timetable::get_full_timetable, StateWithConnection};
 
 use super::{Day, Week};
 
-pub async fn schedule_timetable(chat_id: ChatId, state: &State) -> anyhow::Result<()> {
-    let conn = &mut state.conn().await;
-    let entries = get_full_timetable(conn, &chat_id.to_string()).await?;
+pub async fn schedule_timetable(chat_id: ChatId, state: State) -> anyhow::Result<()> {
+    let scheduler = JobScheduler::new().await?;
 
-    for entry in entries {
-        tokio::spawn(async move {
-            notify(entry).await;
-        });
-    }
+    let state_clone = Arc::new(state);
+
+    let job = Job::new_async("* * * * *", move |_uuid, _lock| {
+        let state = Arc::clone(&state_clone);
+        println!("Running job");
+        Box::pin(async move {
+            let entries = match get_entries(&state, chat_id.to_string()).await {
+                Ok(entries) => entries,
+                Err(err) => {
+                    eprintln!("Failed to get entries: {}", err);
+                    return;
+                }
+            };
+            let now = chrono::Utc::now();
+            let current_week = Week::current() as i32;
+            let current_day = Day::current() as i32;
+            for entry in entries.iter() {
+                if entry.week != current_week || entry.day != current_day {
+                    continue;
+                }
+                let class_time = entry.class_time;
+                if class_time.hour() == now.hour()
+                    && class_time.minute() - now.minute() == 3
+                    && class_time.second() - now.second() < 60
+                {
+                    _ = state.sender.send(Event::Notify {
+                        chat_id,
+                        entry_id: entry.id,
+                    });
+                }
+            }
+        })
+    })?;
+
+    scheduler.add(job).await?;
+
+    scheduler.start().await?;
     Ok(())
 }
 
-async fn notify(entry: TimetableEntry) {
-    let current_week = Week::current();
-    let current_day = Day::current();
-    let total_current_day = current_week * (current_day as u8 + 1);
-    let total_target_day = (entry.week * (entry.day + 1)) as u8;
-    let now = chrono::Utc::now();
-    if total_current_day > total_target_day {
-        let day_diff = 14 - total_current_day + total_target_day;
+async fn get_entries(state: &Arc<State>, chat_id: String) -> anyhow::Result<Vec<TimetableEntry>> {
+    let conn = &mut state.conn().await;
+    let entries: Vec<TimetableEntry>;
+    let key_string = format!("schedule_{}", chat_id);
+    let key = key_string.as_str();
+    if let Some(cache_value) = state.cache.get(key) {
+        entries = match cache_value.value() {
+            CacheValue::TimetableEntries(stored_entries) => stored_entries.clone(),
+            _ => get_full_timetable(conn, &chat_id).await?,
+        };
     } else {
-        let day_diff = total_target_day - total_current_day;
+        entries = get_full_timetable(conn, &chat_id).await?;
+        state.cache.insert(
+            key.to_string(),
+            CacheValue::TimetableEntries(entries.clone()),
+        );
     }
+
+    Ok(entries)
 }

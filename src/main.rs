@@ -2,13 +2,14 @@ pub mod bot;
 pub mod config;
 pub mod db;
 pub mod schema;
+pub mod state;
 
 use std::env;
 
 use bot::handler::handler;
 use config::{commands::Command, state::StateMachine};
 use dotenvy::dotenv;
-use evil_lumios::{AppState, Event, State};
+use state::{AppState, Event, State};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
 use tokio::signal;
 

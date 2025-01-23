@@ -1,5 +1,5 @@
+use crate::state::State;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use evil_lumios::State;
 use teloxide::{prelude::Requester, types::Message, Bot};
 
 use crate::{

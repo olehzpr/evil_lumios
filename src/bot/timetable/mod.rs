@@ -56,6 +56,21 @@ impl From<chrono::Weekday> for Day {
     }
 }
 
+impl From<i32> for Day {
+    fn from(day: i32) -> Self {
+        match day {
+            0 => Day::Mon,
+            1 => Day::Tue,
+            2 => Day::Wed,
+            3 => Day::Thu,
+            4 => Day::Fri,
+            5 => Day::Sat,
+            6 => Day::Sun,
+            _ => panic!("Invalid day number"),
+        }
+    }
+}
+
 impl From<Day> for &'static str {
     fn from(day: Day) -> Self {
         match day {
@@ -109,6 +124,16 @@ impl From<Week> for &str {
         match week {
             Week::First => "Тиждень 1",
             Week::Second => "Тиждень 2",
+        }
+    }
+}
+
+impl From<i32> for Week {
+    fn from(week: i32) -> Self {
+        match week {
+            1 => Week::First,
+            2 => Week::Second,
+            _ => panic!("Invalid week number"),
         }
     }
 }

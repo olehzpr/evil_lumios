@@ -1,4 +1,4 @@
-use evil_lumios::State;
+use crate::state::State;
 use teloxide::{prelude::Requester, types::MessageReactionUpdated, Bot};
 
 use crate::bot::timetable::HandlerResult;

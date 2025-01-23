@@ -1,5 +1,5 @@
+use crate::state::State;
 use diesel::prelude::*;
-use evil_lumios::State;
 
 use crate::db::{
     models::{NewUser, User},
