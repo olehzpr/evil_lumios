@@ -18,7 +18,7 @@ use crate::{
         },
         StateWithConnection,
     },
-    schema, State,
+    schema, send_autodelete, send_message, State,
 };
 
 use super::HandlerResult;
@@ -102,9 +102,7 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
             .unwrap();
     });
 
-    bot.send_extended(Msg::Regular(msg.chat, "Розклад успішно імпортований ✅"))
-        .await?;
-
+    send_message!(bot, msg, "Розклад успішно імпортовано ✅");
     Ok(())
 }
 
@@ -113,14 +111,9 @@ pub async fn today(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entries = get_today_timetable(conn, &msg.chat.id.to_string()).await?;
     let mut res = ui::timetable::day_view(entries);
     if res.is_empty() {
-        res = "Сьогодні немає жодних пар. Можна відпочивати".to_string();
+        res = "Сьогодні немає жодних пар. Можна відпочивати 🔥".to_string();
     }
-    state.sender.send(Event::DeleteMessage {
-        chat_id: msg.chat.id,
-        message_id: msg.id,
-    })?;
-    bot.send_extended(Msg::Temp(msg.chat, &res, state.sender.clone()))
-        .await?;
+    send_autodelete!(bot, msg, state, &res);
     Ok(())
 }
 
@@ -129,14 +122,9 @@ pub async fn tomorrow(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entries = get_tomorrow_timetable(conn, &msg.chat.id.to_string()).await?;
     let mut res = ui::timetable::day_view(entries);
     if res.is_empty() {
-        res = "Завтра немає жодних пар. Можна відпочивати".to_string();
+        res = "Завтра немає жодних пар. Можна відпочивати 🦅".to_string();
     }
-    state.sender.send(Event::DeleteMessage {
-        chat_id: msg.chat.id,
-        message_id: msg.id,
-    })?;
-    bot.send_extended(Msg::Temp(msg.chat, &res, state.sender.clone()))
-        .await?;
+    send_autodelete!(bot, msg, state, &res);
     Ok(())
 }
 
@@ -144,12 +132,7 @@ pub async fn week(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_week_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::week_view(entries);
-    state.sender.send(Event::DeleteMessage {
-        chat_id: msg.chat.id,
-        message_id: msg.id,
-    })?;
-    bot.send_extended(Msg::Temp(msg.chat, &res, state.sender.clone()))
-        .await?;
+    send_autodelete!(bot, msg, state, &res);
     Ok(())
 }
 
@@ -157,39 +140,28 @@ pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResu
     let conn = &mut state.conn().await;
     let entries = get_full_timetable(conn, &msg.chat.id.to_string()).await?;
     let response = ui::timetable::edit_view(entries);
-    bot.send_extended(Msg::Regular(msg.chat, &response)).await?;
+    send_message!(bot, msg, &response);
     Ok(())
 }
 
 pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_current_entry(conn, &msg.chat.id.to_string()).await?;
-    match entry {
-        Some(entry) => {
-            bot.send_extended(Msg::Regular(msg.chat, &ui::timetable::entry_view(&entry)))
-                .await?;
-        }
-        None => {
-            bot.send_extended(Msg::Regular(msg.chat, "На сьогодні заняття закінчились"))
-                .await?;
-        }
-    }
+    let res = match entry {
+        Some(entry) => ui::timetable::entry_view(&entry),
+        None => "Наразі заняття відсутні 😎".to_string(),
+    };
+    send_autodelete!(bot, msg, state, &res);
     Ok(())
 }
 
 pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_next_entry(conn, &msg.chat.id.to_string()).await?;
-    match entry {
-        Some(entry) => {
-            bot.send_extended(Msg::Regular(msg.chat, &ui::timetable::entry_view(&entry)))
-                .await?;
-        }
-        None => {
-            bot.send_extended(Msg::Regular(msg.chat, "На сьогодні заняття закінчились"))
-                .await?;
-        }
-    }
-
+    let res = match entry {
+        Some(entry) => ui::timetable::entry_view(&entry),
+        None => "Наразі заняття відсутні 😎".to_string(),
+    };
+    send_autodelete!(bot, msg, state, &res);
     Ok(())
 }

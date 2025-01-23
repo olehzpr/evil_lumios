@@ -54,3 +54,25 @@ impl ExtendedBot for Bot {
         }
     }
 }
+
+#[macro_export]
+macro_rules! send_autodelete {
+    ($bot:ident, $msg:ident, $state:ident, $res:expr) => {
+        if let Err(e) = $state.sender.send(Event::DeleteMessage {
+            chat_id: $msg.chat.id,
+            message_id: $msg.id,
+        }) {
+            eprintln!("Failed to send delete message event: {:?}", e);
+        }
+
+        $bot.send_extended(Msg::Temp($msg.chat, $res, $state.sender.clone()))
+            .await?;
+    };
+}
+
+#[macro_export]
+macro_rules! send_message {
+    ($bot:ident, $msg:ident, $res:expr) => {
+        $bot.send_extended(Msg::Regular($msg.chat, $res)).await?;
+    };
+}
