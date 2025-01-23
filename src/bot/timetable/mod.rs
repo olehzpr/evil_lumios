@@ -1,7 +1,11 @@
 pub mod commands;
 pub mod external;
 pub mod schedule;
-use std::ops::{Add, Mul};
+use std::{
+    fmt::Display,
+    fmt::Formatter,
+    ops::{Add, Mul},
+};
 
 use chrono::Datelike;
 
@@ -66,6 +70,12 @@ impl From<Day> for &'static str {
     }
 }
 
+impl Display for Day {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", <&str>::from(*self))
+    }
+}
+
 impl Day {
     pub fn next(&self) -> Self {
         match self {
@@ -100,6 +110,12 @@ impl From<Week> for &str {
             Week::First => "Тиждень 1",
             Week::Second => "Тиждень 2",
         }
+    }
+}
+
+impl Display for Week {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", <&str>::from(*self))
     }
 }
 

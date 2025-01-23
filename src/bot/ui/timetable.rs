@@ -1,4 +1,7 @@
-use crate::db::models::TimetableEntry;
+use crate::{
+    bot::timetable::{Day, Week},
+    db::models::TimetableEntry,
+};
 
 use super::utils::adapt_for_markdown;
 
@@ -11,11 +14,11 @@ pub fn day_view(entries: Vec<TimetableEntry>) -> String {
 }
 pub fn week_view(entries: Vec<TimetableEntry>) -> String {
     let mut response = String::new();
-    let mut day: u8 = 0;
+    let mut day: Day = Day::Mon;
     for entry in entries {
         if entry.day == day as i32 {
-            response.push_str(&format!("\n*{}*\n", day.to_string()));
-            day += 1;
+            response.push_str(&format!("\n*{}*\n", day));
+            day = day.next();
         }
         response.push_str(&small_timetable_entry_view(&entry, false));
     }
@@ -27,17 +30,17 @@ pub fn week_view(entries: Vec<TimetableEntry>) -> String {
 
 pub fn edit_view(entries: Vec<TimetableEntry>) -> String {
     let mut response = String::new();
-    let mut day: u8 = 0;
-    let mut week: u8 = 1;
+    let mut day: Day = Day::Mon;
+    let mut week: Week = Week::First;
     for entry in entries {
-        if entry.week == week as i32 {
-            response.push_str(&format!("\n*📅 Week {}*\n", week));
-            week += 1;
-            day = 0;
+        if entry.week == u8::from(week) as i32 {
+            response.push_str(&format!("\n*📅 {}*\n", week));
+            week = week.next();
+            day = Day::Mon;
         }
-        if entry.day == day as i32 {
+        if entry.day == u8::from(day) as i32 {
             response.push_str(&format!("\n*{}*\n", day.to_string()));
-            day += 1;
+            day = day.next();
         }
         response.push_str(&small_timetable_entry_view(&entry, true));
     }
