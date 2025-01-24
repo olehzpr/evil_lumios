@@ -23,6 +23,11 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
     let reaction_handler =
         Update::filter_message_reaction_updated().endpoint(stats::reactions::handle_reaction);
 
+    let catch_all_handler = dptree::endpoint(|update: Update| async move {
+        tracing::info!("Unhandled update: {:?}", update.kind);
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+
     let command_handler = teloxide::filter_command::<Command, _>()
         // general
         .branch(
@@ -49,16 +54,22 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
         .branch(case![Command::Gamble].endpoint(stats::commands::gamble))
         .branch(case![Command::GambleAll].endpoint(stats::commands::gamble_all));
 
-    let message_handler = Update::filter_message().branch(command_handler).branch(
-        case![StateMachine::ReceiveEditTimetableEntry { id }]
-            .endpoint(receive_timetable_entry_link),
-    );
+    let message_handler = Update::filter_message()
+        .branch(command_handler)
+        .branch(
+            case![StateMachine::ReceiveEditTimetableEntry { id }]
+                .endpoint(receive_timetable_entry_link),
+        )
+        .branch(dptree::endpoint(|| async { Ok(()) })); // ignore all other messages
 
     let inline_handler = Update::filter_inline_query().endpoint(answer_inline_query);
 
-    dptree::entry().branch(inline_handler).branch(
-        dialogue::enter::<Update, InMemStorage<StateMachine>, StateMachine, _>()
-            .branch(message_handler)
-            .branch(reaction_handler),
-    )
+    dptree::entry()
+        .branch(inline_handler)
+        .branch(
+            dialogue::enter::<Update, InMemStorage<StateMachine>, StateMachine, _>()
+                .branch(message_handler)
+                .branch(reaction_handler),
+        )
+        .branch(catch_all_handler)
 }

@@ -1,43 +1,63 @@
+use serde::Deserialize;
 use teloxide::types::{InlineQueryResultArticle, InputMessageContent, InputMessageContentText};
 
 use super::utils::hashed_rand;
 
-const EMOJI: &'static [&'static str] = &["❤️", "💕", "💜", "💙", "💖", "💗", "🏳️‍🌈", "🏳️‍⚧️"];
+#[derive(Deserialize)]
+pub struct PairConfig {
+    id: String,
+    emoji: Vec<String>,
+    title: String,
+    title_with_name: String,
+    response: String,
+    username_response: String,
+    description: String,
+    img_url: String,
+}
 
 pub fn get_pair_random(
     q: &teloxide::types::InlineQuery,
+    config: &PairConfig,
 ) -> teloxide::types::InlineQueryResultArticle {
     let username = q.from.username.as_ref().unwrap().as_str();
+
     let message = match q.query.trim() {
-        "" => String::from("Наскільки ви підходите один одному?"),
-        query if query.starts_with("@") => {
-            format!("Наскільки ви з {} підходите один одному?", &q.query[1..])
-        }
-        _ => format!("Наскільки ви з {} підходите один одному?", q.query),
+        "" => config.title.clone(),
+        query if query.starts_with("@") => config.title_with_name.replace("{name}", &q.query[1..]),
+        _ => config.title_with_name.replace("{name}", &q.query),
     };
+
     let answer = match q.query.trim() {
         "" => InputMessageContent::Text(InputMessageContentText::new("* звуки мовчання *")),
         query if query.starts_with("@") => {
-            InputMessageContent::Text(InputMessageContentText::new(format!(
-                "{} Ви з {} підходите один одному на {}% {}",
-                EMOJI[hashed_rand(&[username, &query[1..]]) as usize % EMOJI.len()].to_string(),
-                q.query[1..].to_string(),
-                hashed_rand(&[username, &query[1..]]) % 101,
-                EMOJI[hashed_rand(&[username, &query[1..]]) as usize % EMOJI.len()].to_string(),
-            )))
+            let emoji =
+                &config.emoji[hashed_rand(&[username, &query[1..]]) as usize % config.emoji.len()];
+            let percent = hashed_rand(&[username, &query[1..]]) % 101;
+
+            InputMessageContent::Text(InputMessageContentText::new(
+                config
+                    .username_response
+                    .replace("{emoji}", emoji)
+                    .replace("{name}", &q.query[1..])
+                    .replace("{percent}", &percent.to_string()),
+            ))
         }
-        _ => InputMessageContent::Text(InputMessageContentText::new(format!(
-            "Ви з {} підходите один одному на {} {}% {}",
-            q.query,
-            EMOJI[hashed_rand(&[username, &q.query]) as usize % EMOJI.len()],
-            hashed_rand(&[username, &q.query]) % 101,
-            EMOJI[hashed_rand(&[username, &q.query]) as usize % EMOJI.len()],
-        ))),
+        _ => {
+            let emoji =
+                &config.emoji[hashed_rand(&[username, &q.query]) as usize % config.emoji.len()];
+            let percent = hashed_rand(&[username, &q.query]) % 101;
+
+            InputMessageContent::Text(InputMessageContentText::new(
+                config
+                    .response
+                    .replace("{emoji}", emoji)
+                    .replace("{name}", &q.query)
+                    .replace("{percent}", &percent.to_string()),
+            ))
+        }
     };
 
-    let pair_random = InlineQueryResultArticle::new("01", message, answer)
-        .description("Обирай собі пару")
-        .thumbnail_url("https://i.imgflip.com/4oqd5v.jpg?a477696".parse().unwrap());
-
-    return pair_random;
+    InlineQueryResultArticle::new(config.id.clone(), message, answer)
+        .description(config.description.clone())
+        .thumbnail_url(config.img_url.parse().unwrap())
 }

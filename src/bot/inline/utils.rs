@@ -15,3 +15,8 @@ pub fn hashed_rand(values: &[&str]) -> u64 {
     let mut rng = StdRng::seed_from_u64(seed);
     rng.gen()
 }
+
+pub fn rand() -> u64 {
+    let mut rng = StdRng::from_entropy();
+    rng.gen()
+}
