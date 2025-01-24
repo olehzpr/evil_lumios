@@ -204,3 +204,15 @@ pub async fn get_next_entry(
 
     Ok(entry)
 }
+
+pub fn get_entry_by_id(
+    conn: &mut PgConnection,
+    entry_id: i32,
+) -> anyhow::Result<Option<TimetableEntry>> {
+    let entry = schema::timetable_entries::table
+        .filter(schema::timetable_entries::id.eq(entry_id))
+        .first::<TimetableEntry>(conn)
+        .optional()?;
+
+    Ok(entry)
+}

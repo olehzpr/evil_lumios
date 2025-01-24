@@ -4,7 +4,6 @@ use teloxide::{types::Message, Bot};
 use crate::{
     bot::{
         externsions::{ExtendedBot, Msg},
-        timetable::schedule::schedule_timetable,
         ui::{self},
         utils::params::get_param,
     },
@@ -51,7 +50,6 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let timetable = timetable_api_result.json::<serde_json::Value>().await?;
 
     import_timetable(conn, &msg.chat.id.to_string(), timetable).await?;
-    schedule_timetable(msg.chat.id, state).await?;
 
     send_message!(bot, msg, "Розклад успішно імпортовано ✅");
     Ok(())

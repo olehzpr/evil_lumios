@@ -6,16 +6,21 @@ pub mod state;
 
 use std::env;
 
-use bot::handler::handler;
+use bot::{handler::handler, timetable::schedule::schedule_all_timetables};
 use config::{commands::Command, state::StateMachine};
 use dotenvy::dotenv;
 use state::{AppState, Event, State};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
 use tokio::signal;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+
     let pool = db::setup::establish_connection_pool();
 
     let state = AppState::new(pool);
@@ -42,6 +47,10 @@ async fn main() {
     tokio::spawn(async move {
         dispatcher.dispatch().await;
     });
+
+    schedule_all_timetables(state.clone())
+        .await
+        .expect("Failed to schedule all timetables");
 
     let mut recv = state.sender.subscribe();
 
