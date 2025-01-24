@@ -19,19 +19,26 @@ async fn main() {
     dotenv().ok();
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
 
     let pool = db::setup::establish_connection_pool();
 
     let state = AppState::new(pool);
 
-    let bot_token = env::var("TELOXIDE_TOKEN").expect("TELOXIDE_TOKEN must be set in .env");
+    let bot_token = match env::var("TELOXIDE_TOKEN") {
+        Ok(token) => token,
+        Err(e) => {
+            tracing::error!("TELOXIDE_TOKEN must be set in .env: {:?}", e);
+            std::process::exit(1);
+        }
+    };
 
     let bot = Bot::new(bot_token);
 
-    Command::set_bot_commands(&bot)
-        .await
-        .expect("Failed to set bot commands");
+    if let Err(e) = Command::set_bot_commands(&bot).await {
+        tracing::error!("Failed to set bot commands: {:?}", e);
+    }
 
     tokio::spawn(bot::event_handler::event_loop(bot.clone(), state.clone()));
 
@@ -45,16 +52,18 @@ async fn main() {
     let shutdown_token = dispatcher.shutdown_token();
 
     tokio::spawn(async move {
+        tracing::info!("Starting telegram dispatcher");
         dispatcher.dispatch().await;
     });
 
-    schedule_all_timetables(state.clone())
-        .await
-        .expect("Failed to schedule all timetables");
+    if let Err(e) = schedule_all_timetables(state.clone()).await {
+        tracing::error!("Failed to schedule all timetables: {:?}", e);
+    }
 
     let mut recv = state.sender.subscribe();
 
     tokio::spawn(async move {
+        tracing::info!("Enabled graceful shutdown. Press Ctrl+C to exit");
         signal::ctrl_c().await.unwrap();
         state.sender.send(Event::Exit).unwrap();
     });
@@ -63,7 +72,7 @@ async fn main() {
         tokio::select! {
             Ok(event) = recv.recv() => {
                 if let Event::Exit = event {
-                    eprintln!("Received shutdown signal");
+                    tracing::info!("Received shutdown signal");
                     _ = shutdown_token.shutdown();
                     std::process::exit(0);
                 }

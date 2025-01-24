@@ -15,6 +15,7 @@ pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
     let mut receiver = state.sender.subscribe();
     let arc_bot = Arc::new(bot);
     let sender_clone = state.sender.clone();
+    tracing::info!("Starting event loop");
     while let Ok(event) = receiver.recv().await {
         match event {
             Event::Exit => {
@@ -27,9 +28,15 @@ pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
                 let bot_clone = arc_bot.clone();
                 tokio::spawn(async move {
                     let interval = env::var("MESSAGE_CLEANUP_INTERVAL")
-                        .unwrap_or("60".to_string())
+                        .unwrap_or_else(|_| {
+                            tracing::warn!("Environment variable MESSAGE_CLEANUP_INTERVAL is not set, using default value of 60 seconds");
+                            "60".to_string()
+                        })
                         .parse::<u64>()
-                        .unwrap();
+                        .unwrap_or_else(|_| {
+                            tracing::warn!("Environment variable MESSAGE_CLEANUP_INTERVAL is not a number, using default value of 60 seconds");
+                            60
+                        });
                     tokio::time::sleep(Duration::from_secs(interval)).await;
                     bot_clone
                         .delete_message(chat_id, message_id)

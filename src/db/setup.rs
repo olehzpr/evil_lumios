@@ -10,7 +10,11 @@ pub fn establish_connection_pool() -> DbPool {
 
     let manager = ConnectionManager::<PgConnection>::new(database_url);
 
-    r2d2::Pool::builder()
+    let pool = r2d2::Pool::builder()
         .build(manager)
-        .expect("Failed to create pool.")
+        .expect("Failed to create pool.");
+
+    tracing::info!("Established connection pool");
+
+    pool
 }

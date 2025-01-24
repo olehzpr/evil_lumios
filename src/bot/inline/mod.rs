@@ -24,7 +24,7 @@ pub async fn answer_inline_query(bot: Bot, q: InlineQuery) -> HandlerResult {
         .send()
         .await;
     if let Err(err) = response {
-        log::error!("Error in handler: {:?}", err);
+        tracing::error!("Inline query answer error: {:?}", err);
     }
 
     Ok(())

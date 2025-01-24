@@ -87,7 +87,10 @@ impl Command {
     }
 
     pub fn filter(msg: &Message) -> Option<Command> {
-        let bot_username = env::var("BOT_USERNAME").unwrap();
+        let bot_username = env::var("BOT_USERNAME").unwrap_or_else(|_| {
+            tracing::error!("Environment variable BOT_USERNAME is not set");
+            String::new()
+        });
         if let Some(text) = msg.text() {
             if text.starts_with('/') {
                 return Command::parse(text, &bot_username).ok();

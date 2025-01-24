@@ -16,10 +16,9 @@ diesel = { version = "2.2.6", features = ["postgres", "chrono", "r2d2"] }
 r2d2 = "0.8.10"
 reqwest = { version = "0.12", features = ["json"] }
 anyhow = "1.0.95"
-log = "0.4.25"
 async-trait = "0.1.85"
 rand = "0.8.5"
 tokio-cron-scheduler = "0.13.0"
 dashmap = "6.1.0"
 tracing = "0.1.41"
-tracing-subscriber = {version = "0.3.19", features = ["fmt", "env-filter"]}
+tracing-subscriber = {version = "0.3.19", features = ["fmt", "env-filter", "chrono"]}

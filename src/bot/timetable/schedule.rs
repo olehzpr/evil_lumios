@@ -6,7 +6,6 @@ use crate::{
 };
 use chrono::Timelike;
 use diesel::{QueryDsl, RunQueryDsl};
-use log::info;
 use teloxide::types::ChatId;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
@@ -33,7 +32,7 @@ pub async fn schedule_timetable(chat_id: ChatId, state: State) -> anyhow::Result
 
     let state_clone = Arc::new(state);
 
-    info!("Scheduling timetable for chat_id: {}", chat_id);
+    tracing::info!("Scheduling timetable for chat_id: {}", chat_id);
 
     let job = Job::new_async("1/10 * * * * *", move |_uuid, _lock| {
         let state = Arc::clone(&state_clone);
