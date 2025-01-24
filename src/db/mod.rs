@@ -4,9 +4,11 @@ use r2d2::PooledConnection;
 
 use crate::State;
 
+pub mod chat;
 pub mod models;
 pub mod setup;
 pub mod timetable;
+pub mod user;
 
 #[async_trait]
 pub trait StateWithConnection {

@@ -29,6 +29,7 @@ pub struct User {
     pub username: String,
     pub account_id: String,
     pub chat_id: String,
+    pub name: String,
 }
 
 #[derive(Insertable)]
@@ -37,6 +38,7 @@ pub struct NewUser<'a> {
     pub username: &'a str,
     pub account_id: &'a str,
     pub chat_id: &'a str,
+    pub name: &'a str,
 }
 
 #[derive(Queryable, Selectable, Debug)]

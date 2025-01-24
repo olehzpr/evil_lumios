@@ -15,18 +15,16 @@ use crate::{
         timetable::{self, external::receive_timetable_entry_link},
     },
     config::{commands::Command, state::StateMachine},
+    db::{chat::create_chat_if_not_exists, user::create_user_if_not_exists},
+    state::State,
 };
+use dptree::case;
+
+pub type HandlerResult = anyhow::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
-    use dptree::case;
-
     let reaction_handler =
         Update::filter_message_reaction_updated().endpoint(stats::reactions::handle_reaction);
-
-    let catch_all_handler = dptree::endpoint(|update: Update| async move {
-        tracing::info!("Unhandled update: {:?}", update.kind);
-        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    });
 
     let command_handler = teloxide::filter_command::<Command, _>()
         // general
@@ -65,11 +63,24 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
     let inline_handler = Update::filter_inline_query().endpoint(answer_inline_query);
 
     dptree::entry()
+        .filter_map_async(preprocess_update)
         .branch(inline_handler)
         .branch(
             dialogue::enter::<Update, InMemStorage<StateMachine>, StateMachine, _>()
                 .branch(message_handler)
                 .branch(reaction_handler),
         )
-        .branch(catch_all_handler)
+}
+
+async fn preprocess_update(update: Update, state: State) -> Option<(Update, State)> {
+    if let (Some(chat), Some(user)) = (update.chat(), update.from()) {
+        if let Err(err) = create_chat_if_not_exists(&state, chat).await {
+            tracing::error!("Failed to create chat: {:?}", err);
+        }
+        if let Err(err) = create_user_if_not_exists(&state, user, chat).await {
+            tracing::error!("Failed to create user: {:?}", err);
+        }
+    }
+
+    Some((update, state))
 }

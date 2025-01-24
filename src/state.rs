@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use diesel::{r2d2::ConnectionManager, PgConnection};
-use teloxide::types::{ChatId, MessageId};
+use teloxide::types::{ChatId, MessageId, UserId};
 
 use crate::db::models::{Timetable, TimetableEntry};
 
@@ -23,6 +23,8 @@ pub enum CacheValue {
     Timetable(Timetable),
     TimetableEntry(TimetableEntry),
     TimetableEntries(Vec<TimetableEntry>),
+    Chat(ChatId),
+    User(UserId),
 }
 
 #[derive(Clone, Debug)]
