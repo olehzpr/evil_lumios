@@ -18,10 +18,21 @@ CREATE TABLE users (
 CREATE TABLE user_stats (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id),
-  rating INTEGER NOT NULL,
-  balance INTEGER NOT NULL,
-  daily_increment INTEGER NOT NULL,
+  balance INTEGER NOT NULL DEFAULT 1000,
+  daily_limit INTEGER NOT NULL DEFAULT 100,
+  daily_used INTEGER NOT NULL DEFAULT 0,
   CONSTRAINT unique_user_id UNIQUE(user_id)
+);
+
+CREATE TABLE gambles (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  message_id VARCHAR(255) NOT NULL UNIQUE,
+  gamble_type VARCHAR(255) NOT NULL,
+  bet INTEGER NOT NULL,
+  change INTEGER NOT NULL,
+  is_win BOOLEAN NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE queues (
@@ -36,6 +47,7 @@ CREATE TABLE queues (
 CREATE TABLE queue_users (
   id SERIAL PRIMARY KEY,
   position INTEGER NOT NULL,
+  priority INTEGER DEFAULT NULL,
   is_freezed BOOLEAN NOT NULL DEFAULT FALSE,
   queue_id INTEGER NOT NULL REFERENCES queues(id),
   user_id INTEGER NOT NULL REFERENCES users(id),

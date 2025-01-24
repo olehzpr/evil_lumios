@@ -32,13 +32,20 @@ pub async fn create_user_if_not_exists(
     }
 
     tracing::debug!("New user with id {} was created", user.id);
-
-    diesel::insert_into(crate::schema::users::table)
+    let new_user = diesel::insert_into(crate::schema::users::table)
         .values(NewUser {
             username: user.username.as_ref().unwrap_or(&String::new()),
             account_id: &user.id.to_string(),
             chat_id: &chat.id.to_string(),
             name: &user.first_name,
+        })
+        .get_result::<User>(conn)?;
+
+    state.cache.insert(key, CacheValue::User(user.id));
+
+    diesel::insert_into(schema::user_stats::table)
+        .values(crate::db::models::NewUserStats {
+            user_id: new_user.id,
         })
         .execute(conn)?;
 

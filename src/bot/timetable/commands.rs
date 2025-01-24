@@ -1,4 +1,4 @@
-use crate::state::Event;
+use crate::{bot::handler::HandlerResult, state::Event};
 use teloxide::{types::Message, Bot};
 
 use crate::{
@@ -16,8 +16,6 @@ use crate::{
     },
     send_autodelete, send_message, State,
 };
-
-use super::HandlerResult;
 
 pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;

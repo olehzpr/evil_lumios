@@ -26,7 +26,7 @@ pub fn week_view(entries: Vec<TimetableEntry>) -> String {
         response.push_str(&entry_row(&entry, false));
     }
     if response.is_empty() {
-        response = "Схоже що на цей тиждень немає жодних пар. Спробуйте імпортувати розклад за допомогою команди /import\n".to_string();
+        response = adapt_for_markdown("Схоже що на цей тиждень немає жодних пар. Спробуйте імпортувати розклад за допомогою команди /import\n".to_string());
     }
     return response;
 }

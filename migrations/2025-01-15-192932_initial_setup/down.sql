@@ -7,6 +7,8 @@ DROP TABLE IF EXISTS queue_users;
 
 DROP TABLE IF EXISTS queues;
 
+DROP TABLE IF EXISTS gambles;
+
 DROP TABLE IF EXISTS user_stats;
 
 DROP TABLE IF EXISTS users;

@@ -1,4 +1,4 @@
-use crate::state::State;
+use crate::{bot::handler::HandlerResult, state::State};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use teloxide::{prelude::Requester, types::Message, Bot};
 
@@ -7,8 +7,6 @@ use crate::{
     db::StateWithConnection,
     schema,
 };
-
-use super::HandlerResult;
 
 pub async fn receive_timetable_entry_link(
     bot: Bot,

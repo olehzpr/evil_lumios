@@ -14,9 +14,25 @@ diesel::table! {
 }
 
 diesel::table! {
+    gambles (id) {
+        id -> Int4,
+        user_id -> Int4,
+        #[max_length = 255]
+        message_id -> Varchar,
+        #[max_length = 255]
+        gamble_type -> Varchar,
+        bet -> Int4,
+        change -> Int4,
+        is_win -> Bool,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     queue_users (id) {
         id -> Int4,
         position -> Int4,
+        priority -> Nullable<Int4>,
         is_freezed -> Bool,
         queue_id -> Int4,
         user_id -> Int4,
@@ -63,9 +79,9 @@ diesel::table! {
     user_stats (id) {
         id -> Int4,
         user_id -> Int4,
-        rating -> Int4,
         balance -> Int4,
-        daily_increment -> Int4,
+        daily_limit -> Int4,
+        daily_used -> Int4,
     }
 }
 
@@ -83,6 +99,7 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(gambles -> users (user_id));
 diesel::joinable!(queue_users -> queues (queue_id));
 diesel::joinable!(queue_users -> users (user_id));
 diesel::joinable!(timetable_entries -> timetables (timetable_id));
@@ -90,6 +107,7 @@ diesel::joinable!(user_stats -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     chats,
+    gambles,
     queue_users,
     queues,
     timetable_entries,

@@ -9,6 +9,7 @@ use teloxide::{
 
 use crate::{
     bot::{
+        callbacks::handle_callback,
         general,
         inline::answer_inline_query,
         queues, stats,
@@ -25,6 +26,8 @@ pub type HandlerResult = anyhow::Result<(), Box<dyn std::error::Error + Send + S
 pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
     let reaction_handler =
         Update::filter_message_reaction_updated().endpoint(stats::reactions::handle_reaction);
+
+    let callback_handler = Update::filter_callback_query().endpoint(handle_callback);
 
     let command_handler = teloxide::filter_command::<Command, _>()
         // general
@@ -70,6 +73,7 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
                 .branch(message_handler)
                 .branch(reaction_handler),
         )
+        .branch(callback_handler)
 }
 
 async fn preprocess_update(update: Update, state: State) -> Option<(Update, State)> {

@@ -9,8 +9,6 @@ use std::{
 
 use chrono::Datelike;
 
-pub type HandlerResult = anyhow::Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
 #[derive(Copy, Clone, Debug)]
 pub enum Day {
     Mon,

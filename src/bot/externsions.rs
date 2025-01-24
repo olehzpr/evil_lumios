@@ -2,7 +2,7 @@ use crate::state::Event;
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::Requester,
-    types::{ChatId, LinkPreviewOptions, Message, ParseMode},
+    types::{ChatId, InlineKeyboardMarkup, LinkPreviewOptions, Message, ParseMode},
     Bot, RequestError,
 };
 use tokio::sync::broadcast::Sender;
@@ -23,6 +23,11 @@ pub enum Msg<'a> {
 #[async_trait::async_trait]
 pub trait ExtendedBot {
     async fn send_extended(&self, message: Msg<'_>) -> Result<Message, RequestError>;
+    async fn send_with_keyboard(
+        &self,
+        message: Msg<'_>,
+        keyboard: InlineKeyboardMarkup,
+    ) -> Result<Message, RequestError>;
 }
 
 #[async_trait::async_trait]
@@ -53,10 +58,57 @@ impl ExtendedBot for Bot {
             }
         }
     }
+
+    async fn send_with_keyboard(
+        &self,
+        message: Msg<'_>,
+        keyboard: InlineKeyboardMarkup,
+    ) -> Result<Message, RequestError> {
+        match message {
+            Msg::Regular(chat_id, content) => {
+                self.send_message(chat_id, content)
+                    .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+                    .parse_mode(ParseMode::MarkdownV2)
+                    .reply_markup(keyboard)
+                    .await
+            }
+            Msg::Temp(chat_id, content, sender) => {
+                let message = self
+                    .send_message(chat_id, content)
+                    .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+                    .parse_mode(ParseMode::MarkdownV2)
+                    .reply_markup(keyboard)
+                    .await?;
+
+                if let Err(e) = sender.send(Event::DeleteMessage {
+                    chat_id,
+                    message_id: message.id,
+                }) {
+                    eprintln!("Failed to send delete message event: {:?}", e);
+                }
+
+                Ok(message)
+            }
+        }
+    }
 }
 
 #[macro_export]
 macro_rules! send_autodelete {
+    ($bot:ident, $msg:ident, $state:ident, $res:expr, $keyboard:expr) => {
+        if let Err(e) = $state.sender.send(Event::DeleteMessage {
+            chat_id: $msg.chat.id,
+            message_id: $msg.id,
+        }) {
+            eprintln!("Failed to send delete message event: {:?}", e);
+        }
+
+        $bot.send_with_keyboard(
+            Msg::Temp($msg.chat.id, $res, $state.sender.clone()),
+            $keyboard,
+        )
+        .await?;
+    };
     ($bot:ident, $msg:ident, $state:ident, $res:expr) => {
         if let Err(e) = $state.sender.send(Event::DeleteMessage {
             chat_id: $msg.chat.id,

@@ -1,4 +1,4 @@
-use crate::{bot::timetable::HandlerResult, State};
+use crate::{bot::handler::HandlerResult, State};
 use teloxide::{prelude::Requester, types::Message, Bot};
 
 pub async fn queue(bot: Bot, msg: Message, _state: State) -> HandlerResult {

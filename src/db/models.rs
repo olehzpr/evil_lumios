@@ -47,18 +47,39 @@ pub struct NewUser<'a> {
 pub struct UserStats {
     pub id: i32,
     pub user_id: i32,
-    pub rating: i32,
     pub balance: i32,
-    pub daily_increment: i32,
+    pub daily_limit: i32,
+    pub daily_used: i32,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = user_stats)]
 pub struct NewUserStats {
     pub user_id: i32,
-    pub rating: i32,
-    pub balance: i32,
-    pub daily_increment: i32,
+}
+
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = gambles)]
+#[diesel(check_for_backend(Pg))]
+pub struct Gamble {
+    pub id: i32,
+    pub user_id: i32,
+    pub message_id: String,
+    pub gamble_type: String,
+    pub bet: i32,
+    pub change: i32,
+    pub is_win: bool,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = gambles)]
+pub struct NewGamble {
+    pub user_id: i32,
+    pub gamble_type: String,
+    pub bet: i32,
+    pub change: i32,
+    pub is_win: bool,
 }
 
 #[derive(Queryable, Selectable, Debug)]

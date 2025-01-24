@@ -1,4 +1,4 @@
-use crate::state::State;
+use crate::{bot::handler::HandlerResult, state::State};
 use diesel::{QueryDsl, RunQueryDsl};
 use teloxide::{
     payloads::SendMessageSetters, prelude::Requester, types::Message, utils::command::BotCommands,
@@ -6,7 +6,7 @@ use teloxide::{
 };
 
 use crate::{
-    bot::{timetable::HandlerResult, ui},
+    bot::ui,
     config::{
         commands::Command,
         state::{BotDialogue, StateMachine},

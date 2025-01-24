@@ -43,5 +43,7 @@ pub async fn create_chat_if_not_exists(
         })
         .execute(conn)?;
 
+    state.cache.insert(key, CacheValue::Chat(chat.id));
+
     Ok(())
 }

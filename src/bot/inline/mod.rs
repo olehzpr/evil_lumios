@@ -13,7 +13,7 @@ use teloxide::{
 };
 use zrada::{zrada_random, ZradaConfig};
 
-use super::timetable::HandlerResult;
+use super::handler::HandlerResult;
 
 pub mod dck_random;
 pub mod gender;

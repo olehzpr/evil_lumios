@@ -1,7 +1,5 @@
-use crate::state::State;
+use crate::{bot::handler::HandlerResult, state::State};
 use teloxide::{prelude::Requester, types::MessageReactionUpdated, Bot};
-
-use crate::bot::timetable::HandlerResult;
 
 pub async fn handle_reaction(
     bot: Bot,
