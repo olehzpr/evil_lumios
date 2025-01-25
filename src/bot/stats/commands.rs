@@ -6,6 +6,7 @@ use crate::{
     db::{stats::get_short_me, StateWithConnection},
     State,
 };
+use reqwest::Url;
 use teloxide::payloads::EditMessageReplyMarkupSetters;
 use teloxide::prelude::Request;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
@@ -13,6 +14,21 @@ use teloxide::{prelude::Requester, types::Message, Bot};
 
 pub async fn stats(bot: Bot, msg: Message, _state: State) -> HandlerResult {
     bot.send_message(msg.chat.id, "Stats command").await?;
+    Ok(())
+}
+
+pub async fn casino(bot: Bot, msg: Message, state: State) -> HandlerResult {
+    let res = ui::stats::casino_welcome();
+    let bot_name = bot.get_me().await?.user.username.unwrap();
+    bot.send_with_keyboard(
+        Msg::Temp(msg.chat.id, &res, state.sender.clone()),
+        InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::url(
+            "Пройти до казино",
+            Url::parse(&format!("https://t.me/{}?start=casino", bot_name)).unwrap(),
+        )]]),
+    )
+    .await?;
+
     Ok(())
 }
 

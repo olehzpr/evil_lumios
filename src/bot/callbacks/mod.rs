@@ -13,6 +13,7 @@ pub mod stats;
 pub enum Callback {
     ShowFullStats(MessageId, UserId),
 }
+
 impl Callback {
     pub fn from_str(s: &str) -> Option<Self> {
         let parts: Vec<&str> = s.split('_').collect();
@@ -29,6 +30,7 @@ impl Callback {
         }
     }
 }
+
 pub async fn handle_callback(bot: Bot, state: State, q: CallbackQuery) -> HandlerResult {
     if q.data.is_none() {
         bot.answer_callback_query(q.id).await?;

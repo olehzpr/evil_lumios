@@ -51,6 +51,9 @@ pub enum Command {
     #[command(description = "Показати статистику")]
     Stats,
 
+    #[command(description = "Зайти в казино")]
+    Casino,
+
     #[command(description = "Переглянути свою статистику")]
     Me,
 

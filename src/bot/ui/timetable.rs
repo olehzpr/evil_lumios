@@ -85,7 +85,7 @@ fn entry_row(entry: &TimetableEntry, edit: bool) -> String {
     }
     if edit {
         edit_link = format!(
-            "[✏️](https://t.me/evil_lumios_bot?start=edit_timetable_{})",
+            "[✏️](https://t.me/evil_lumios_bot?start=edit-timetable_{})",
             entry.id
         );
     }
