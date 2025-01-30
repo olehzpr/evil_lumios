@@ -1,10 +1,4 @@
-use crate::{
-    bot::{
-        externsions::{ExtendedBot, Msg},
-        handler::HandlerResult,
-    },
-    state::State,
-};
+use crate::{bot::handler::HandlerResult, state::State};
 use diesel::{QueryDsl, RunQueryDsl};
 use reqwest::Url;
 use teloxide::{

@@ -52,10 +52,13 @@ pub fn full_stats(stats: FullStats) -> String {
     )
 }
 
-pub fn casino_welcome() -> String {
-    adapt_for_markdown(
+pub fn casino_welcome() -> (String, String) {
+    let text = adapt_for_markdown(
     "Я бачу, ти вирішив випробувати свою удачу в казино. Що ж, прямуй за мною... наш шлях починається."
-    .to_string())
+    .to_string());
+    let image_url =
+        "https://vrwf71w421.ufs.sh/f/Mb9Zy1a6B3fQTVV8sDLHXoq2JsGady4L3cntPhFrezAMZ1kl".to_string();
+    (text, image_url)
 }
 
 pub fn casino_arrival() -> (String, String) {

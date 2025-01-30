@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod message_handler;
 
 pub enum StartCommand {
     Start,

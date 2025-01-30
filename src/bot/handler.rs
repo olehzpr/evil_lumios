@@ -62,7 +62,7 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
             case![StateMachine::ReceiveEditTimetableEntry { id }]
                 .endpoint(receive_timetable_entry_link),
         )
-        .branch(dptree::endpoint(|| async { Ok(()) })); // ignore all other messages
+        .branch(dptree::endpoint(general::message_handler::handler));
 
     let inline_handler = Update::filter_inline_query().endpoint(answer_inline_query);
 

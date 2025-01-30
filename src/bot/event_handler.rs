@@ -2,6 +2,7 @@ use std::{env, sync::Arc, time::Duration};
 
 use crate::{
     db::{timetable::get_entry_by_id, StateWithConnection},
+    send_temp,
     state::{Event, State},
 };
 use teloxide::{prelude::Requester, Bot};
@@ -14,7 +15,6 @@ use super::{
 pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
     let mut receiver = state.sender.subscribe();
     let arc_bot = Arc::new(bot);
-    let sender_clone = state.sender.clone();
     tracing::info!("Starting event loop");
     while let Ok(event) = receiver.recv().await {
         match event {
@@ -49,9 +49,7 @@ pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
                 let conn = &mut state.conn().await;
                 let entry = get_entry_by_id(conn, entry_id)?;
                 let res = ui::timetable::entry_view(entry);
-                bot.send_extended(Msg::Temp(chat_id, &res, sender_clone.clone()))
-                    .await
-                    .expect("Failed to send message");
+                send_temp!(bot, state, chat_id, &res);
             }
         }
     }

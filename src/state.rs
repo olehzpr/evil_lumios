@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 use dashmap::DashMap;
 use diesel::{r2d2::ConnectionManager, PgConnection};
-use teloxide::types::{ChatId, MessageId, UserId};
+use teloxide::types::{ChatId, Message, MessageId, UserId};
 
 use crate::db::models::{Timetable, TimetableEntry};
 
@@ -14,6 +14,11 @@ pub struct AppState {
     pub sender: tokio::sync::broadcast::Sender<Event>,
     pub receiver: tokio::sync::broadcast::Receiver<Event>,
     pub cache: DashMap<String, CacheValue>,
+    pub fifo_cache: std::sync::Mutex<FifoCache>,
+}
+
+pub struct FifoCache {
+    pub messages: VecDeque<MessageId>,
 }
 
 pub enum CacheValue {
@@ -25,13 +30,8 @@ pub enum CacheValue {
     TimetableEntries(Vec<TimetableEntry>),
     Chat(ChatId),
     User(UserId),
+    Message(Message),
 }
-
-#[derive(Clone, Debug)]
-pub enum InteractionState {
-    WaitingForInput { prompt: String },
-}
-
 pub type State = Arc<AppState>;
 
 const MAX_CHANNEL_CAPACITY: usize = 100;
@@ -46,6 +46,9 @@ impl AppState {
             sender: event_tx,
             receiver: event_rx,
             cache: DashMap::new(),
+            fifo_cache: std::sync::Mutex::new(FifoCache {
+                messages: VecDeque::new(),
+            }),
         })
     }
 }

@@ -1,4 +1,4 @@
-use crate::{bot::handler::HandlerResult, state::Event};
+use crate::{bot::handler::HandlerResult, send_autodelete, send_regular};
 use teloxide::{types::Message, Bot};
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
         },
         StateWithConnection,
     },
-    send_autodelete, send_message, State,
+    State,
 };
 
 pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
@@ -49,7 +49,8 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
     import_timetable(conn, &msg.chat.id.to_string(), timetable).await?;
 
-    send_message!(bot, msg, "Розклад успішно імпортовано ✅");
+    // send_message!(bot, msg, "Розклад успішно імпортовано ✅");
+    send_regular!(bot, msg, "Розклад успішно імпортовано ✅");
     Ok(())
 }
 
@@ -57,7 +58,8 @@ pub async fn today(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_today_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::day_view(entries);
-    send_autodelete!(bot, msg, state, &res);
+    // send_autodelete!(bot, msg, state, &res);
+    send_autodelete!(bot, state, msg, &res);
     Ok(())
 }
 
@@ -65,7 +67,8 @@ pub async fn tomorrow(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_tomorrow_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::day_view(entries);
-    send_autodelete!(bot, msg, state, &res);
+    // send_autodelete!(bot, msg, state, &res);
+    send_autodelete!(bot, state, msg, &res);
     Ok(())
 }
 
@@ -73,7 +76,8 @@ pub async fn week(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_week_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::week_view(entries);
-    send_autodelete!(bot, msg, state, &res);
+    // send_autodelete!(bot, msg, state, &res);
+    send_autodelete!(bot, state, msg, &res);
     Ok(())
 }
 
@@ -81,7 +85,8 @@ pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResu
     let conn = &mut state.conn().await;
     let entries = get_full_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::edit_view(entries);
-    send_message!(bot, msg, &res);
+    // send_message!(bot, msg, &res);
+    send_autodelete!(bot, state, msg, &res);
     Ok(())
 }
 
@@ -89,7 +94,8 @@ pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_current_entry(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::entry_view(entry);
-    send_autodelete!(bot, msg, state, &res);
+    // send_autodelete!(bot, msg, state, &res);
+    send_autodelete!(bot, state, msg, &res);
     Ok(())
 }
 
@@ -97,6 +103,7 @@ pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_next_entry(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::entry_view(entry);
-    send_autodelete!(bot, msg, state, &res);
+    // send_autodelete!(bot, msg, state, &res);
+    send_autodelete!(bot, state, msg, &res);
     Ok(())
 }
