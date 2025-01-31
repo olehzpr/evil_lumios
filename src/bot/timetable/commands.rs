@@ -1,9 +1,13 @@
-use crate::{bot::handler::HandlerResult, send_autodelete, send_regular};
-use teloxide::{types::Message, Bot};
+use crate::{bot::handler::HandlerResult, delete_message, Event};
+use teloxide::{
+    payloads::SendMessageSetters,
+    prelude::Requester,
+    types::{LinkPreviewOptions, Message},
+    Bot,
+};
 
 use crate::{
     bot::{
-        externsions::{ExtendedBot, Msg},
         ui::{self},
         utils::params::get_param,
     },
@@ -49,8 +53,13 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
     import_timetable(conn, &msg.chat.id.to_string(), timetable).await?;
 
-    // send_message!(bot, msg, "Розклад успішно імпортовано ✅");
-    send_regular!(bot, msg, "Розклад успішно імпортовано ✅");
+    let new_msg = bot
+        .send_message(msg.chat.id, "Розклад успішно імпортовано ✅")
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
+
     Ok(())
 }
 
@@ -58,8 +67,16 @@ pub async fn today(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_today_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::day_view(entries);
-    // send_autodelete!(bot, msg, state, &res);
-    send_autodelete!(bot, state, msg, &res);
+
+    let new_msg = bot
+        .send_message(msg.chat.id, res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
+
     Ok(())
 }
 
@@ -67,8 +84,15 @@ pub async fn tomorrow(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_tomorrow_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::day_view(entries);
-    // send_autodelete!(bot, msg, state, &res);
-    send_autodelete!(bot, state, msg, &res);
+
+    let new_msg = bot
+        .send_message(msg.chat.id, res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
     Ok(())
 }
 
@@ -76,8 +100,15 @@ pub async fn week(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entries = get_week_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::week_view(entries);
-    // send_autodelete!(bot, msg, state, &res);
-    send_autodelete!(bot, state, msg, &res);
+
+    let new_msg = bot
+        .send_message(msg.chat.id, res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
     Ok(())
 }
 
@@ -85,8 +116,15 @@ pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResu
     let conn = &mut state.conn().await;
     let entries = get_full_timetable(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::edit_view(entries);
-    // send_message!(bot, msg, &res);
-    send_autodelete!(bot, state, msg, &res);
+
+    let new_msg = bot
+        .send_message(msg.chat.id, res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
     Ok(())
 }
 
@@ -94,8 +132,15 @@ pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_current_entry(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::entry_view(entry);
-    // send_autodelete!(bot, msg, state, &res);
-    send_autodelete!(bot, state, msg, &res);
+
+    let new_msg = bot
+        .send_message(msg.chat.id, res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
     Ok(())
 }
 
@@ -103,7 +148,22 @@ pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_next_entry(conn, &msg.chat.id.to_string()).await?;
     let res = ui::timetable::entry_view(entry);
-    // send_autodelete!(bot, msg, state, &res);
-    send_autodelete!(bot, state, msg, &res);
+
+    let new_msg = bot
+        .send_message(msg.chat.id, res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
     Ok(())
 }
+
+const DISABLED_LINK_PREVIEW_OPTIONS: LinkPreviewOptions = LinkPreviewOptions {
+    is_disabled: true,
+    url: None,
+    prefer_large_media: false,
+    prefer_small_media: false,
+    show_above_text: false,
+};

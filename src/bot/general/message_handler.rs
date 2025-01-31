@@ -13,7 +13,14 @@ pub async fn handler(bot: Bot, msg: Message, state: State) -> HandlerResult {
             bot.send_message(msg.chat.id, "сам іді нахуй").await?;
         }
     }
-    let mut fifo_cache = state.fifo_cache.lock().unwrap();
+
+    cache_message(msg, state);
+
+    Ok(())
+}
+
+pub fn cache_message(msg: Message, state: State) {
+    let mut fifo_cache = state.fifo_cache.lock().expect("Failed to lock fifo_cache");
     if fifo_cache.messages.len() as u64 >= 100 {
         let front = fifo_cache.messages.pop_front();
         if let Some(front) = front {
@@ -24,5 +31,4 @@ pub async fn handler(bot: Bot, msg: Message, state: State) -> HandlerResult {
     state
         .cache
         .insert(format!("message:{}", msg.id), CacheValue::Message(msg));
-    Ok(())
 }

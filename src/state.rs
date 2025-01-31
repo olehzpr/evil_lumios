@@ -31,7 +31,9 @@ pub enum CacheValue {
     Chat(ChatId),
     User(UserId),
     Message(Message),
+    ChatIds(Vec<ChatId>),
 }
+
 pub type State = Arc<AppState>;
 
 const MAX_CHANNEL_CAPACITY: usize = 100;

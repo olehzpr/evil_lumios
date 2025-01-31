@@ -20,7 +20,7 @@ pub fn gender_random(
     let username = q.from.username.as_ref().unwrap();
     let random_value = hashed_rand(&[username]);
     let mut answer = &config.responses[random_value as usize % config.responses.len()];
-    if username == "@lychkoalexander" {
+    if username == "lychkoalexander" {
         answer = &config.lychko_response;
     }
     let gender = InlineQueryResultArticle::new(

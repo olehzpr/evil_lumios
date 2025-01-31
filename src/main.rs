@@ -1,12 +1,14 @@
+pub mod api;
 pub mod bot;
 pub mod config;
+pub mod cron;
 pub mod db;
 pub mod schema;
 pub mod state;
 
 use std::env;
 
-use bot::{handler::handler, timetable::schedule::schedule_all_timetables};
+use bot::handler::handler;
 use config::{commands::Command, state::StateMachine};
 use dotenvy::dotenv;
 use state::{AppState, Event, State};
@@ -56,8 +58,10 @@ async fn main() {
         dispatcher.dispatch().await;
     });
 
-    if let Err(e) = schedule_all_timetables(state.clone()).await {
-        tracing::error!("Failed to schedule all timetables: {:?}", e);
+    tokio::spawn(api::start());
+
+    if let Err(e) = cron::cron_loop(state.clone()).await {
+        tracing::error!("Failed to start cron loop: {:?}", e);
     }
 
     let mut recv = state.sender.subscribe();

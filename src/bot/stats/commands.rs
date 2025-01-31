@@ -1,5 +1,5 @@
-use crate::bot::externsions::{ExtendedBot, Msg};
 use crate::bot::handler::HandlerResult;
+use crate::delete_message;
 use crate::state::Event;
 use crate::{
     bot::ui,
@@ -7,7 +7,7 @@ use crate::{
     State,
 };
 use reqwest::Url;
-use teloxide::payloads::{EditMessageReplyMarkupSetters, SendPhotoSetters};
+use teloxide::payloads::{EditMessageReplyMarkupSetters, SendMessageSetters, SendPhotoSetters};
 use teloxide::prelude::Request;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, InputFile};
 use teloxide::{prelude::Requester, types::Message, Bot};
@@ -20,28 +20,21 @@ pub async fn stats(bot: Bot, msg: Message, _state: State) -> HandlerResult {
 pub async fn casino(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let (res, url) = ui::stats::casino_welcome();
     let bot_name = bot.get_me().await?.user.username.unwrap();
-    // send_photo!(
-    //     bot,
-    //     msg,
-    //     res,
-    //     url,
-    //     InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::url(
-    //         "Пройти до казино",
-    //         Url::parse(&format!("https://t.me/{}?start=casino", bot_name)).unwrap(),
-    //     ),]])
-    // );
-    // let bot_name = bot.get_me().await?.user.username.unwrap();
-    // bot.send_photo(msg.chat.id, InputFile::url(Url::parse(&url).unwrap()))
-    //     .caption(res)
-    //     .reply_markup(InlineKeyboardMarkup::new(vec![vec![
-    //         InlineKeyboardButton::url(
-    //             "Пройти до казино",
-    //             Url::parse(&format!("https://t.me/{}?start=casino", bot_name)).unwrap(),
-    //         ),
-    //     ]]))
-    //     .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-    //     .send()
-    //     .await?;
+    let new_msg = bot
+        .send_photo(msg.chat.id, InputFile::url(Url::parse(&url).unwrap()))
+        .caption(res)
+        .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+            InlineKeyboardButton::url(
+                "Пройти до казино",
+                Url::parse(&format!("https://t.me/{}?start=casino", bot_name)).unwrap(),
+            ),
+        ]]))
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .send()
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
 
     Ok(())
 }
@@ -58,24 +51,26 @@ pub async fn me(bot: Bot, msg: Message, state: State) -> HandlerResult {
         eprintln!("Failed to send delete message event: {:?}", e);
     }
 
-    // let sent_msg = bot
-    //     .send_with_keyboard(
-    //         Msg::Temp(msg.chat.id, &res, state.sender.clone()),
-    //         InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::callback(
-    //             "Показати всю статистику",
-    //             "loading",
-    //         )]]),
-    //     )
-    //     .await?;
-    // bot.edit_message_reply_markup(sent_msg.chat.id, sent_msg.id)
-    //     .reply_markup(InlineKeyboardMarkup::new(vec![vec![
-    //         InlineKeyboardButton::callback(
-    //             "Показати всю статистику",
-    //             format!("show-full-stats_{}_{}", user_id, sent_msg.id),
-    //         ),
-    //     ]]))
-    //     .send()
-    //     .await?;
+    let sent_msg = bot
+        .send_message(msg.chat.id, &res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+            InlineKeyboardButton::callback("Показати всю статистику", "loading"),
+        ]]))
+        .await?;
+
+    bot.edit_message_reply_markup(sent_msg.chat.id, sent_msg.id)
+        .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+            InlineKeyboardButton::callback(
+                "Показати всю статистику",
+                format!("show-full-stats_{}_{}", user_id, sent_msg.id),
+            ),
+        ]]))
+        .send()
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, sent_msg);
 
     Ok(())
 }

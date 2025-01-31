@@ -1,4 +1,5 @@
-use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, OptionalExtension, PgConnection, QueryDsl, RunQueryDsl};
+use teloxide::types::ChatId;
 
 use crate::schema::{self};
 use crate::state::{CacheValue, State};
@@ -46,4 +47,15 @@ pub async fn create_chat_if_not_exists(
     state.cache.insert(key, CacheValue::Chat(chat.id));
 
     Ok(())
+}
+
+pub async fn get_chats(conn: &mut PgConnection) -> anyhow::Result<Vec<ChatId>> {
+    schema::timetables::table
+        .select(schema::timetables::chat_id)
+        .distinct()
+        .load::<String>(conn)?
+        .into_iter()
+        .map(|id| id.parse().map(ChatId))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| anyhow::anyhow!(e))
 }
