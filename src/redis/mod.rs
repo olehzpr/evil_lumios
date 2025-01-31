@@ -1,6 +1,5 @@
-use std::num::NonZero;
-
-use redis::Commands;
+use r2d2_redis::redis::Commands;
+use setup::RedisStore;
 use teloxide::types::{ChatId, Message, MessageId, UserId};
 
 use crate::db::models::{Chat, TimetableEntry, User};
@@ -21,7 +20,7 @@ pub trait RedisCache {
     fn get_all_chat_ids(&self) -> anyhow::Result<Vec<ChatId>>;
 }
 
-impl RedisCache for redis::Client {
+impl RedisCache for RedisStore {
     fn store_timetable_entries(
         &self,
         chat_id: ChatId,
@@ -66,7 +65,7 @@ impl RedisCache for redis::Client {
         let _: () = con.lpush(&list_key, message.id.to_string())?;
 
         if con.llen::<&String, i64>(&list_key).unwrap() > 100 {
-            let removed_id: String = con.rpop(&list_key, NonZero::new(1))?;
+            let removed_id: String = con.rpop(&list_key)?;
             let removed_key = format!("message:{}:{}", message.chat.id, removed_id);
             let _: () = con.del(&removed_key)?;
         }

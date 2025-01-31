@@ -26,7 +26,7 @@ async fn main() {
         .init();
 
     let pool = db::setup::establish_connection_pool();
-    let redis = redis::setup::establish_connection();
+    let redis = redis::setup::RedisStore::from_env();
 
     let state = AppState::new(pool, redis);
 

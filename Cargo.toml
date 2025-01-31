@@ -28,3 +28,4 @@ tracing-subscriber = { version = "0.3.19", features = [
 ] }
 toml = "0.8.19"
 redis = "0.28.2"
+r2d2_redis = "0.14.0"
