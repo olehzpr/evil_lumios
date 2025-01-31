@@ -14,7 +14,7 @@ pub fn establish_connection_pool() -> DbPool {
         .build(manager)
         .expect("Failed to create pool.");
 
-    tracing::info!("Established connection pool");
+    tracing::info!("Successfully connected to database");
 
     pool
 }

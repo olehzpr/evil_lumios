@@ -1,7 +1,9 @@
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
+use teloxide::types::UserId;
 
+use crate::redis::RedisCache;
 use crate::schema::{self};
-use crate::state::{CacheValue, State};
+use crate::state::State;
 
 use super::models::{NewUser, User};
 use super::StateWithConnection;
@@ -14,8 +16,8 @@ pub async fn create_user_if_not_exists(
     let conn = &mut state.conn().await;
 
     tracing::debug!("Checking if user with id {} exists", user.id);
-    let key = format!("user_{}", user.id);
-    if state.cache.get(&key).is_some() {
+
+    if state.redis.get_user(user.id).is_ok() {
         tracing::debug!("User with id {} already exists in cache", user.id);
         return Ok(());
     }
@@ -25,9 +27,9 @@ pub async fn create_user_if_not_exists(
         .first::<User>(conn)
         .optional()?;
 
-    if existing_user.is_some() {
+    if let Some(existing_user) = existing_user {
         tracing::debug!("User with id {} already exists in database", user.id);
-        state.cache.insert(key, CacheValue::User(user.id));
+        state.redis.store_user(existing_user)?;
         return Ok(());
     }
 
@@ -41,7 +43,7 @@ pub async fn create_user_if_not_exists(
         })
         .get_result::<User>(conn)?;
 
-    state.cache.insert(key, CacheValue::User(user.id));
+    state.redis.store_user(new_user.clone())?;
 
     diesel::insert_into(schema::user_stats::table)
         .values(crate::db::models::NewUserStats {
@@ -50,4 +52,11 @@ pub async fn create_user_if_not_exists(
         .execute(conn)?;
 
     Ok(())
+}
+
+pub async fn get_user_by_id(state: &State, user_id: UserId) -> anyhow::Result<User> {
+    schema::users::table
+        .filter(schema::users::account_id.eq(user_id.to_string()))
+        .first::<User>(&mut state.conn().await)
+        .map_err(|e| anyhow::anyhow!(e))
 }

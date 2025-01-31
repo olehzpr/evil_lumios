@@ -1,9 +1,6 @@
 use teloxide::{prelude::Requester, types::Message, Bot};
 
-use crate::{
-    bot::handler::HandlerResult,
-    state::{CacheValue, State},
-};
+use crate::{bot::handler::HandlerResult, redis::RedisCache, state::State};
 
 pub async fn handler(bot: Bot, msg: Message, state: State) -> HandlerResult {
     if let (Some(text), Some(reply)) = (msg.text(), msg.reply_to_message()) {
@@ -14,21 +11,7 @@ pub async fn handler(bot: Bot, msg: Message, state: State) -> HandlerResult {
         }
     }
 
-    cache_message(msg, state);
+    state.redis.store_message(msg)?;
 
     Ok(())
-}
-
-pub fn cache_message(msg: Message, state: State) {
-    let mut fifo_cache = state.fifo_cache.lock().expect("Failed to lock fifo_cache");
-    if fifo_cache.messages.len() as u64 >= 100 {
-        let front = fifo_cache.messages.pop_front();
-        if let Some(front) = front {
-            state.cache.remove(format!("message:{}", front).as_str());
-        }
-    }
-    fifo_cache.messages.push_back(msg.id);
-    state
-        .cache
-        .insert(format!("message:{}", msg.id), CacheValue::Message(msg));
 }

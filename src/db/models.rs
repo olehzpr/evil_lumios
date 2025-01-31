@@ -1,7 +1,8 @@
 use crate::schema::*;
 use diesel::{pg::Pg, prelude::*};
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Selectable, QueryableByName, Debug)]
+#[derive(Queryable, Selectable, QueryableByName, Debug, Serialize, Deserialize)]
 #[diesel(table_name = chats)]
 #[diesel(check_for_backend(Pg))]
 pub struct Chat {
@@ -21,7 +22,7 @@ pub struct NewChat<'a> {
     pub description: Option<&'a str>,
 }
 
-#[derive(Queryable, Selectable, QueryableByName, Debug)]
+#[derive(Queryable, Selectable, QueryableByName, Debug, Serialize, Deserialize, Clone)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(Pg))]
 pub struct User {
@@ -41,7 +42,7 @@ pub struct NewUser<'a> {
     pub name: &'a str,
 }
 
-#[derive(Queryable, Selectable, Debug)]
+#[derive(Queryable, Selectable, Debug, Serialize, Deserialize)]
 #[diesel(table_name = user_stats)]
 #[diesel(check_for_backend(Pg))]
 pub struct UserStats {
@@ -58,7 +59,7 @@ pub struct NewUserStats {
     pub user_id: i32,
 }
 
-#[derive(Queryable, Selectable, Debug)]
+#[derive(Queryable, Selectable, Debug, Serialize, Deserialize)]
 #[diesel(table_name = gambles)]
 #[diesel(check_for_backend(Pg))]
 pub struct Gamble {
@@ -82,7 +83,7 @@ pub struct NewGamble {
     pub is_win: bool,
 }
 
-#[derive(Queryable, Selectable, Debug)]
+#[derive(Queryable, Selectable, Debug, Serialize, Deserialize)]
 #[diesel(table_name = timetables)]
 #[diesel(check_for_backend(Pg))]
 pub struct Timetable {
@@ -96,7 +97,7 @@ pub struct NewTimetable<'a> {
     pub chat_id: &'a str,
 }
 
-#[derive(Queryable, Selectable, Debug, Clone)]
+#[derive(Queryable, Selectable, Debug, Serialize, Deserialize, Clone)]
 #[diesel(table_name = timetable_entries)]
 #[diesel(check_for_backend(Pg))]
 pub struct TimetableEntry {
@@ -122,7 +123,7 @@ pub struct NewTimetableEntry<'a> {
     pub link: Option<&'a str>,
 }
 
-#[derive(Queryable, Selectable, Debug)]
+#[derive(Queryable, Selectable, Debug, Serialize, Deserialize)]
 #[diesel(table_name = queues)]
 #[diesel(check_for_backend(Pg))]
 pub struct Queue {
@@ -143,7 +144,7 @@ pub struct NewQueue<'a> {
     pub is_deleted: bool,
 }
 
-#[derive(Queryable, Selectable, Debug)]
+#[derive(Queryable, Selectable, Debug, Serialize, Deserialize)]
 #[diesel(table_name = queue_users)]
 #[diesel(check_for_backend(Pg))]
 pub struct QueueUser {

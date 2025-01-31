@@ -1,9 +1,9 @@
-use diesel::{ExpressionMethods, JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl};
+use diesel::{Connection, ExpressionMethods, JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl};
 use teloxide::types::UserId;
 
 use crate::schema;
 
-use super::models::{Gamble, UserStats};
+use super::models::{Gamble, User, UserStats};
 
 pub struct FullStats {
     pub user_id: i32,
@@ -19,7 +19,7 @@ pub struct FullStats {
     pub average_bet: f32,
 }
 
-pub async fn get_short_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Result<UserStats> {
+pub async fn get_user_stats(conn: &mut PgConnection, user_id: UserId) -> anyhow::Result<UserStats> {
     let stats = schema::user_stats::table
         .inner_join(schema::users::table.on(schema::users::id.eq(schema::user_stats::user_id)))
         .filter(schema::users::account_id.eq(user_id.to_string()))
@@ -98,4 +98,43 @@ pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Re
     };
 
     Ok(stats)
+}
+
+pub async fn transfer_reaction_points(
+    conn: &mut PgConnection,
+    sender: User,
+    receiver: User,
+    points: i32,
+) -> anyhow::Result<()> {
+    conn.transaction::<_, anyhow::Error, _>(|tx| {
+        use schema::user_stats;
+
+        let sender_stats = user_stats::table
+            .filter(user_stats::user_id.eq(sender.id))
+            .first::<UserStats>(tx)?;
+        let receiver_stats = user_stats::table
+            .filter(user_stats::user_id.eq(receiver.id))
+            .first::<UserStats>(tx)?;
+
+        let available = sender_stats.daily_limit - sender_stats.daily_used;
+        let actual = if available > points {
+            points
+        } else {
+            available
+        };
+
+        if actual == 0 {
+            return Ok(());
+        }
+
+        diesel::update(user_stats::table.filter(user_stats::user_id.eq(sender.id)))
+            .set(user_stats::daily_used.eq(sender_stats.daily_used + actual))
+            .execute(tx)?;
+
+        diesel::update(user_stats::table.filter(user_stats::user_id.eq(receiver.id)))
+            .set(user_stats::balance.eq(receiver_stats.balance + actual))
+            .execute(tx)?;
+
+        Ok(())
+    })
 }

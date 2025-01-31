@@ -1,27 +1,43 @@
-use crate::{bot::handler::HandlerResult, db::StateWithConnection, state::State};
-use teloxide::types::{Me, MessageReactionUpdated, ReactionType, Update, User};
+use crate::{
+    bot::handler::HandlerResult,
+    db::{self, models, stats::transfer_reaction_points, StateWithConnection},
+    redis::RedisCache,
+    state::State,
+};
+use teloxide::types::{MessageReactionUpdated, ReactionType, UserId};
 
-pub async fn handle_reaction(
-    message_reaction: MessageReactionUpdated,
-    state: State,
-) -> HandlerResult {
-    let new_reaction =
-        find_new_reaction(message_reaction.old_reaction, message_reaction.new_reaction);
+pub async fn handle_reaction(msg: MessageReactionUpdated, state: State) -> HandlerResult {
+    let new_reaction = find_new_reaction(msg.old_reaction, msg.new_reaction);
+
     tracing::debug!("New reaction: {:?}", new_reaction);
-    let points = get_reaction_points(&new_reaction);
-    let conn = &mut state.conn().await;
-    let user_that_gave_reaction = message_reaction.user;
-    let message_id = message_reaction.message_id;
 
-    // tracing::debug!(
-    //     "User that gave reaction: {:?}, user that received reaction: {:?}",
-    //     user_that_gave_reaction,
-    //     user_that_received_reaction
-    // );
-    if new_reaction.emoji().unwrap().as_str() == "💩" {
+    let points = get_reaction_points(&new_reaction);
+    let sender = msg.user.unwrap();
+    let receiver = match state.redis.get_message(msg.chat.id, msg.message_id)?.from {
+        Some(user) => user,
+        None => return Ok(()),
+    };
+    let sender = get_user(&state, sender.id).await?;
+    let receiver = get_user(&state, receiver.id).await?;
+
+    if sender.id == receiver.id {
         return Ok(());
     }
+
+    let conn = &mut state.conn().await;
+    transfer_reaction_points(conn, sender, receiver, points).await?;
+
     Ok(())
+}
+
+async fn get_user(state: &State, user_id: UserId) -> anyhow::Result<models::User> {
+    if let Ok(user) = state.redis.get_user(user_id) {
+        Ok(user)
+    } else {
+        let user = db::user::get_user_by_id(&state, user_id).await?;
+        state.redis.store_user(user.clone())?;
+        Ok(user)
+    }
 }
 
 fn find_new_reaction(old_list: Vec<ReactionType>, new_list: Vec<ReactionType>) -> ReactionType {
@@ -32,7 +48,7 @@ fn find_new_reaction(old_list: Vec<ReactionType>, new_list: Vec<ReactionType>) -
     }
 
     return ReactionType::Emoji {
-        emoji: "😴".to_string(),
+        emoji: "😴".to_string(), // а що б ви робили в цій ситуації?
     };
 }
 

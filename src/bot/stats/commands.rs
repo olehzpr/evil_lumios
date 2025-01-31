@@ -3,7 +3,7 @@ use crate::delete_message;
 use crate::state::Event;
 use crate::{
     bot::ui,
-    db::{stats::get_short_me, StateWithConnection},
+    db::{stats::get_user_stats, StateWithConnection},
     State,
 };
 use reqwest::Url;
@@ -42,7 +42,7 @@ pub async fn casino(bot: Bot, msg: Message, state: State) -> HandlerResult {
 pub async fn me(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let user_id = msg.from.as_ref().unwrap().id;
-    let stats = get_short_me(conn, msg.from.unwrap().id).await?;
+    let stats = get_user_stats(conn, msg.from.unwrap().id).await?;
     let res = ui::stats::short_stats(stats);
     if let Err(e) = state.sender.send(Event::DeleteMessage {
         chat_id: msg.chat.id,

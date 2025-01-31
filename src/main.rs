@@ -3,6 +3,7 @@ pub mod bot;
 pub mod config;
 pub mod cron;
 pub mod db;
+pub mod redis;
 pub mod schema;
 pub mod state;
 
@@ -25,8 +26,9 @@ async fn main() {
         .init();
 
     let pool = db::setup::establish_connection_pool();
+    let redis = redis::setup::establish_connection();
 
-    let state = AppState::new(pool);
+    let state = AppState::new(pool, redis);
 
     let bot_token = match env::var("TELOXIDE_TOKEN") {
         Ok(token) => token,
