@@ -1,9 +1,7 @@
-use std::env;
-
 use teloxide::{
     payloads::SetMyCommandsSetters,
     prelude::{Requester, ResponseResult},
-    types::Message,
+    types::{Me, Message},
     utils::command::BotCommands,
     Bot,
 };
@@ -89,14 +87,12 @@ impl Command {
         Ok(())
     }
 
-    pub fn filter(msg: &Message) -> Option<Command> {
-        let bot_username = env::var("BOT_USERNAME").unwrap_or_else(|_| {
-            tracing::error!("Environment variable BOT_USERNAME is not set");
-            String::new()
-        });
+    pub fn filter(me: Me, msg: &Message) -> Option<Command> {
         if let Some(text) = msg.text() {
             if text.starts_with('/') {
-                return Command::parse(text, &bot_username).ok();
+                if let Some(username) = me.username.as_deref() {
+                    return Command::parse(text, &username).ok();
+                }
             }
         }
         None

@@ -1,4 +1,8 @@
 use crate::bot::handler::HandlerResult;
+use crate::bot::utils::params::get_param;
+use crate::bot::utils::random::get_random_bool;
+use crate::db::gamble::{insert_gamble, GambleDto, GambleType};
+use crate::db::user::get_user_by_id;
 use crate::delete_message;
 use crate::state::Event;
 use crate::{
@@ -11,6 +15,8 @@ use teloxide::payloads::{EditMessageReplyMarkupSetters, SendMessageSetters, Send
 use teloxide::prelude::Request;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, InputFile};
 use teloxide::{prelude::Requester, types::Message, Bot};
+
+use super::gifs::get_random_gif;
 
 pub async fn stats(bot: Bot, msg: Message, _state: State) -> HandlerResult {
     bot.send_message(msg.chat.id, "Stats command").await?;
@@ -80,12 +86,104 @@ pub async fn wheel(bot: Bot, msg: Message, _state: State) -> HandlerResult {
     Ok(())
 }
 
-pub async fn gamble(bot: Bot, msg: Message, _state: State) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Gamble command").await?;
+pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
+    let conn = &mut state.conn().await;
+
+    let amount = get_param(&msg, "Вкажіть ціле невід'ємне число")?;
+    let amount = match amount.parse::<u32>() {
+        Ok(amount) => amount,
+        Err(_) => {
+            bot.send_message(msg.chat.id, "Вкажіть ціле невід'ємне число")
+                .await?;
+            return Ok(());
+        }
+    };
+
+    let result = make_bet(&state, &msg, Amount::Value(amount)).await;
+    if let Err(error) = result {
+        bot.send_message(msg.chat.id, error.to_string()).await?;
+        return Ok(());
+    }
+    let result = result.unwrap();
+
+    let content = if result.is_win {
+        ui::stats::generate_win_message(result.bet, result.bet + result.change)
+    } else {
+        ui::stats::generate_lose_message(result.bet, result.bet + result.change)
+    };
+
+    get_random_gif(&state, result.is_win).await?;
+
+    insert_gamble(conn, result).await?;
+
+    bot.send_message(msg.chat.id, &content).await?;
+
     Ok(())
 }
 
-pub async fn gamble_all(bot: Bot, msg: Message, _state: State) -> HandlerResult {
-    bot.send_message(msg.chat.id, "GambleAll command").await?;
+pub async fn gamble_all(bot: Bot, msg: Message, state: State) -> HandlerResult {
+    let conn = &mut state.conn().await;
+
+    let result = make_bet(&state, &msg, Amount::All).await;
+    if let Err(error) = result {
+        bot.send_message(msg.chat.id, error.to_string()).await?;
+        return Ok(());
+    }
+    let result = result.unwrap();
+    let content = if result.is_win {
+        ui::stats::generate_win_message(result.bet, result.bet + result.change)
+    } else {
+        ui::stats::generate_lose_message(result.bet, result.bet + result.change)
+    };
+
+    get_random_gif(&state, result.is_win).await?;
+
+    insert_gamble(conn, result).await?;
+
+    bot.send_message(msg.chat.id, &content).await?;
     Ok(())
+}
+
+enum Amount {
+    All,
+    Value(u32),
+}
+
+async fn make_bet(state: &State, msg: &Message, amount: Amount) -> anyhow::Result<GambleDto> {
+    let conn = &mut state.conn().await;
+    let user = msg.from.as_ref().unwrap();
+    let stored_user = get_user_by_id(&state, user.id).await?;
+    let user_stats = get_user_stats(conn, user.id).await?; //fix error handling;
+
+    let amount = match amount {
+        Amount::All => user_stats.balance as u32,
+        Amount::Value(value) => value,
+    };
+
+    if user_stats.balance < amount as i32 {
+        return Err(anyhow::anyhow!("Недостатньо коштів"));
+    }
+
+    let username = user.username.as_ref().unwrap_or(&String::new()).clone();
+
+    let result = get_random_bool(username);
+
+    const WIN_COEFFICIENT: f32 = 0.4;
+    const LOSE_COEFFICIENT: f32 = 0.5;
+    let new_balance = if result {
+        user_stats.balance + (amount as f32 * WIN_COEFFICIENT) as i32
+    } else {
+        user_stats.balance - (amount as f32 * LOSE_COEFFICIENT) as i32
+    };
+
+    let change = new_balance - user_stats.balance;
+
+    Ok(GambleDto {
+        user_id: stored_user.id,
+        message_id: msg.id,
+        is_win: result,
+        change,
+        bet: amount as i32,
+        gamble_type: GambleType::Bet,
+    })
 }

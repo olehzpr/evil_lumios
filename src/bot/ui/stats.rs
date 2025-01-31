@@ -1,6 +1,7 @@
 use crate::db::{models::UserStats, stats::FullStats};
 
 use super::utils::adapt_for_markdown;
+use rand::seq::SliceRandom;
 
 pub fn short_stats(stats: UserStats) -> String {
     format!(
@@ -19,9 +20,17 @@ pub fn short_stats(stats: UserStats) -> String {
 
 pub fn full_stats(stats: FullStats) -> String {
     let current_streak = if stats.current_streak > 0 {
-        format!("{} перемог", stats.current_streak.abs())
+        format!(
+            "{} {}",
+            stats.current_streak.abs(),
+            win_with_case(stats.current_streak.abs())
+        )
     } else {
-        format!("{} поразок", stats.current_streak.abs())
+        format!(
+            "{} {}",
+            stats.current_streak.abs(),
+            lose_with_case(stats.current_streak.abs()),
+        )
     };
     format!(
         "*Власна статистика*\n\
@@ -34,6 +43,8 @@ pub fn full_stats(stats: FullStats) -> String {
         Кількість ставок:     {:>7}\n\
         -    Перемог:         {:>7}\n\
         -    Поразок:         {:>7}\n\
+        Виграно в сумі:       {:>7}\n\
+        Програно в сумі:      {:>7}\n\
         Найдовша серія:\n\
         -    Перемог:         {:>7}\n\
         -    Поразок:         {:>7}\n\
@@ -44,12 +55,36 @@ pub fn full_stats(stats: FullStats) -> String {
         stats.daily_limit - stats.daily_used,
         stats.average_bet,
         stats.total_gambles,
+        stats.num_of_wins,
+        stats.num_of_losses,
         stats.total_won,
         stats.total_lost,
         stats.longest_winning_streak,
         stats.longest_losing_streak,
         current_streak
     )
+}
+
+fn win_with_case(n: i32) -> &'static str {
+    if n > 20 {
+        return win_with_case(n % 10);
+    }
+    match n {
+        1 => "перемога",
+        2..=4 => "перемоги",
+        _ => "перемог",
+    }
+}
+
+fn lose_with_case(n: i32) -> &'static str {
+    if n > 20 {
+        return lose_with_case(n % 10);
+    }
+    match n {
+        1 => "поразка",
+        2..=4 => "поразки",
+        _ => "поразок",
+    }
 }
 
 pub fn casino_welcome() -> (String, String) {
@@ -68,4 +103,50 @@ pub fn casino_arrival() -> (String, String) {
     let image_url =
         "https://vrwf71w421.ufs.sh/f/Mb9Zy1a6B3fQeXVcpUy4tiJaTF63qupnIx8gHBh0WbLws1DY".to_string();
     (text, image_url)
+}
+
+pub fn generate_win_message(bet_amount: i32, new_balance: i32) -> String {
+    let messages = [
+        "Леді Фортуна посміхається тобі! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Ти справжній везунчик! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Продовжуй в тому ж дусі!",
+        "Ти продав свою душу дияволу, але це варте того! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не забувай, що справжній гравець ніколи не здавається!",
+        "Невже ти відкрив секрет великої перемоги? Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "...і він виграв! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Дідько його бери, як він це робить! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Не вірю очам, це що, знову перемога? Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Коли він народився, увесь світ прошептав його ім'я - переможець! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Хакарі б пишався тобою! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Зажди! Навчи мене! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+        "Ти виграв, ти великий, ти найкращий! Ти виграв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Так тримати!",
+    ];
+
+    let mut rng = rand::thread_rng();
+    let message = messages.choose(&mut rng).unwrap();
+    message
+        .replace("{bet_amount}", &bet_amount.to_string())
+        .replace("{new_balance}", &new_balance.to_string())
+}
+
+pub fn generate_lose_message(bet_amount: i32, new_balance: i32) -> String {
+    let messages = [
+        "Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Що таке? Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "ХА-ХА, ОЦЕ ЛУЗЕР! Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Забув помолитися перед грою? Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Яка ж шкода! Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Невезуча мавпа! Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Сьогодні не твій день. Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "ХАХВАХВХАХАВХ ЦЕ Ж ТИ? Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "ЯКЕ ЖАЛЮГІДНЕ! Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Ти програв, ти в нуліну, твоя мама тебе не любить, твій тато тебе не любить, твої друзі тебе не люблять, твій кіт тебе не любить, твій сусід тебе не любить, твій бос тебе не любить! Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+        "Лісова мавпа... Ти програв ставку розміром {bet_amount} поваги і тепер у тебе {new_balance} поваги. Не здавайся, у тебе ще є шанс відігратися!",
+    ];
+
+    let mut rng = rand::thread_rng();
+    let message = messages.choose(&mut rng).unwrap();
+    message
+        .replace("{bet_amount}", &bet_amount.to_string())
+        .replace("{new_balance}", &new_balance.to_string())
 }

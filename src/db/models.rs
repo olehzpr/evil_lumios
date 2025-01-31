@@ -77,6 +77,7 @@ pub struct Gamble {
 #[diesel(table_name = gambles)]
 pub struct NewGamble {
     pub user_id: i32,
+    pub message_id: String,
     pub gamble_type: String,
     pub bet: i32,
     pub change: i32,

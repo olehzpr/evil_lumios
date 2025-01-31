@@ -19,7 +19,6 @@ anyhow = "1.0.95"
 async-trait = "0.1.85"
 rand = "0.8.5"
 tokio-cron-scheduler = "0.13.0"
-dashmap = "6.1.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = [
   "fmt",
@@ -29,3 +28,4 @@ tracing-subscriber = { version = "0.3.19", features = [
 toml = "0.8.19"
 redis = "0.28.2"
 r2d2_redis = "0.14.0"
+getrandom = "0.3.1"

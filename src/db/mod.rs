@@ -5,6 +5,7 @@ use r2d2::PooledConnection;
 use crate::State;
 
 pub mod chat;
+pub mod gamble;
 pub mod models;
 pub mod setup;
 pub mod stats;

@@ -10,6 +10,8 @@ pub struct FullStats {
     pub balance: i32,
     pub daily_limit: i32,
     pub daily_used: i32,
+    pub num_of_wins: i32,
+    pub num_of_losses: i32,
     pub total_won: i32,
     pub total_lost: i32,
     pub total_gambles: i32,
@@ -45,6 +47,8 @@ pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Re
 
     let mut total_won = 0;
     let mut total_lost = 0;
+    let mut num_of_wins = 0;
+    let mut num_of_losses = 0;
     let mut total_gambles = 0;
     let mut longest_winning_streak = 0;
     let mut longest_losing_streak = 0;
@@ -55,6 +59,7 @@ pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Re
         total_gambles += 1;
         if gamble.is_win {
             total_won += gamble.change.abs();
+            num_of_wins += 1;
             if current_streak >= 0 {
                 current_streak += 1;
             } else {
@@ -65,6 +70,7 @@ pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Re
             }
         } else {
             total_lost += gamble.change.abs();
+            num_of_losses += 1;
             if current_streak <= 0 {
                 current_streak -= 1;
             } else {
@@ -90,6 +96,8 @@ pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Re
         daily_used: stats.daily_used,
         total_won,
         total_lost,
+        num_of_wins,
+        num_of_losses,
         total_gambles,
         longest_winning_streak,
         longest_losing_streak,
