@@ -130,9 +130,11 @@ pub struct NewTimetableEntry<'a> {
 pub struct Queue {
     pub id: i32,
     pub title: String,
+    pub chat_id: String,
     pub message_id: String,
     pub is_mixed: Option<bool>,
     pub is_deleted: bool,
+    pub is_priority: bool,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -140,9 +142,11 @@ pub struct Queue {
 #[diesel(table_name = queues)]
 pub struct NewQueue<'a> {
     pub title: &'a str,
+    pub chat_id: &'a str,
     pub message_id: &'a str,
     pub is_mixed: Option<bool>,
     pub is_deleted: bool,
+    pub is_priority: bool,
 }
 
 #[derive(Queryable, Selectable, Debug, Serialize, Deserialize)]
@@ -150,10 +154,11 @@ pub struct NewQueue<'a> {
 #[diesel(check_for_backend(Pg))]
 pub struct QueueUser {
     pub id: i32,
+    pub position: i32,
+    pub priority: Option<i32>,
+    pub is_freezed: Option<bool>,
     pub queue_id: i32,
     pub user_id: i32,
-    pub position: i32,
-    pub is_freezed: bool,
 }
 
 #[derive(Insertable)]
@@ -162,4 +167,5 @@ pub struct NewQueueUser {
     pub queue_id: i32,
     pub user_id: i32,
     pub position: i32,
+    pub priority: Option<i32>,
 }

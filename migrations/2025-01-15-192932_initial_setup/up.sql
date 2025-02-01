@@ -38,8 +38,10 @@ CREATE TABLE gambles (
 CREATE TABLE queues (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
-  message_id VARCHAR(255) NOT NULL UNIQUE,
+  chat_id VARCHAR(255) NOT NULL,
+  message_id VARCHAR(255) NOT NULL,
   is_mixed BOOLEAN,
+  is_priority BOOLEAN NOT NULL DEFAULT FALSE,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -48,7 +50,7 @@ CREATE TABLE queue_users (
   id SERIAL PRIMARY KEY,
   position INTEGER NOT NULL,
   priority INTEGER DEFAULT NULL,
-  is_freezed BOOLEAN NOT NULL DEFAULT FALSE,
+  is_freezed BOOLEAN DEFAULT NULL,
   queue_id INTEGER NOT NULL REFERENCES queues(id),
   user_id INTEGER NOT NULL REFERENCES users(id),
   CONSTRAINT unique_queue_user UNIQUE(queue_id, user_id)

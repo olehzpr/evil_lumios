@@ -33,7 +33,7 @@ diesel::table! {
         id -> Int4,
         position -> Int4,
         priority -> Nullable<Int4>,
-        is_freezed -> Bool,
+        is_freezed -> Nullable<Bool>,
         queue_id -> Int4,
         user_id -> Int4,
     }
@@ -45,8 +45,11 @@ diesel::table! {
         #[max_length = 255]
         title -> Varchar,
         #[max_length = 255]
+        chat_id -> Varchar,
+        #[max_length = 255]
         message_id -> Varchar,
         is_mixed -> Nullable<Bool>,
+        is_priority -> Bool,
         is_deleted -> Bool,
         created_at -> Timestamp,
     }

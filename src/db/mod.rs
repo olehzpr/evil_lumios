@@ -7,6 +7,7 @@ use crate::State;
 pub mod chat;
 pub mod gamble;
 pub mod models;
+pub mod queue;
 pub mod setup;
 pub mod stats;
 pub mod timetable;

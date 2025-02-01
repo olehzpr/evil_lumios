@@ -23,6 +23,9 @@ pub enum Command {
     #[command(description = "Створити мішану чергу")]
     Mixed,
 
+    #[command(description = "Створити чергу з пріоритетом")]
+    PriorityQueue,
+
     // Schedule
     #[command(description = "Імпортувати існуюючий розклад")]
     Import,
