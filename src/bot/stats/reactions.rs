@@ -34,7 +34,7 @@ async fn get_user(state: &State, user_id: UserId) -> anyhow::Result<models::User
     if let Ok(user) = state.redis.get_user(user_id) {
         Ok(user)
     } else {
-        let user = db::user::get_user_by_id(&state, user_id).await?;
+        let user = db::user::get_user_by_account_id(&state, user_id).await?;
         state.redis.store_user(user.clone())?;
         Ok(user)
     }

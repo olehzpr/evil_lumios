@@ -48,6 +48,7 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
         // queues
         .branch(case![Command::Queue].endpoint(queues::commands::queue))
         .branch(case![Command::Mixed].endpoint(queues::commands::mixed))
+        .branch(case![Command::PriorityQueue].endpoint(queues::commands::priority_queue))
         // stats
         .branch(case![Command::Stats].endpoint(stats::commands::stats))
         .branch(case![Command::Casino].endpoint(stats::commands::casino))

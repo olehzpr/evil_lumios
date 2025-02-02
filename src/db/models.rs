@@ -145,7 +145,6 @@ pub struct NewQueue<'a> {
     pub chat_id: &'a str,
     pub message_id: &'a str,
     pub is_mixed: Option<bool>,
-    pub is_deleted: bool,
     pub is_priority: bool,
 }
 

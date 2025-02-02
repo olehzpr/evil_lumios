@@ -1,4 +1,4 @@
-use crate::{bot::handler::HandlerResult, delete_message, Event};
+use crate::{bot::handler::HandlerResult, delete_message, param};
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::Requester,
@@ -7,10 +7,7 @@ use teloxide::{
 };
 
 use crate::{
-    bot::{
-        ui::{self},
-        utils::params::get_param,
-    },
+    bot::ui::{self},
     db::{
         timetable::{
             get_current_entry, get_full_timetable, get_next_entry, get_today_timetable,
@@ -23,10 +20,14 @@ use crate::{
 
 pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
-    let group_name = get_param(
-        &msg,
-        "Ви повинні вказати код групи. Наприклад /import ІП-32",
-    )?;
+    let group_name = param!(
+        bot,
+        msg,
+        state,
+        String,
+        "Вкажіть назву групи, наприклад ІП-32"
+    );
+
     let group_api_result = state
         .http_client
         .get("https://api.campus.kpi.ua/group/find")

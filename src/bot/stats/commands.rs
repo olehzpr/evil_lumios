@@ -1,15 +1,14 @@
 use crate::bot::handler::HandlerResult;
-use crate::bot::utils::params::get_param;
 use crate::bot::utils::random::get_random_bool;
 use crate::db::gamble::{insert_gamble, GambleDto, GambleType};
-use crate::db::user::get_user_by_id;
-use crate::delete_message;
+use crate::db::user::get_user_by_account_id;
 use crate::state::Event;
 use crate::{
     bot::ui,
     db::{stats::get_user_stats, StateWithConnection},
     State,
 };
+use crate::{delete_message, param};
 use reqwest::Url;
 use teloxide::payloads::{EditMessageReplyMarkupSetters, SendMessageSetters, SendPhotoSetters};
 use teloxide::prelude::Request;
@@ -89,15 +88,7 @@ pub async fn wheel(bot: Bot, msg: Message, _state: State) -> HandlerResult {
 pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
 
-    let amount = get_param(&msg, "Вкажіть ціле невід'ємне число")?;
-    let amount = match amount.parse::<u32>() {
-        Ok(amount) => amount,
-        Err(_) => {
-            bot.send_message(msg.chat.id, "Вкажіть ціле невід'ємне число")
-                .await?;
-            return Ok(());
-        }
-    };
+    let amount = param!(bot, msg, state, u32, "Вкажіть ціле невідʼємне число");
 
     let result = make_bet(&state, &msg, Amount::Value(amount)).await;
     if let Err(error) = result {
@@ -152,7 +143,7 @@ enum Amount {
 async fn make_bet(state: &State, msg: &Message, amount: Amount) -> anyhow::Result<GambleDto> {
     let conn = &mut state.conn().await;
     let user = msg.from.as_ref().unwrap();
-    let stored_user = get_user_by_id(&state, user.id).await?;
+    let stored_user = get_user_by_account_id(&state, user.id).await?;
     let user_stats = get_user_stats(conn, user.id).await?; //fix error handling;
 
     let amount = match amount {

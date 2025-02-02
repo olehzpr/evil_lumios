@@ -54,9 +54,16 @@ pub async fn create_user_if_not_exists(
     Ok(())
 }
 
-pub async fn get_user_by_id(state: &State, user_id: UserId) -> anyhow::Result<User> {
+pub async fn get_user_by_account_id(state: &State, user_id: UserId) -> anyhow::Result<User> {
     schema::users::table
         .filter(schema::users::account_id.eq(user_id.to_string()))
+        .first::<User>(&mut state.conn().await)
+        .map_err(|e| anyhow::anyhow!(e))
+}
+
+pub async fn get_user_by_id(state: &State, user_id: i32) -> anyhow::Result<User> {
+    schema::users::table
+        .find(user_id)
         .first::<User>(&mut state.conn().await)
         .map_err(|e| anyhow::anyhow!(e))
 }

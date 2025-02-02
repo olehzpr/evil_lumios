@@ -5,9 +5,9 @@ use diesel::{
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 use teloxide::types::{ChatId, MessageId};
 
-use crate::schema::{queue_users, queues};
+use crate::schema::{queue_users, queues, users};
 
-use super::models::{NewQueue, NewQueueUser, Queue, QueueUser};
+use super::models::{NewQueue, NewQueueUser, Queue, QueueUser, User};
 
 pub fn create_queue(conn: &mut PgConnection, new_queue: NewQueue) -> anyhow::Result<Queue> {
     let new_queue = diesel::insert_into(queues::table)
@@ -51,6 +51,16 @@ pub fn get_queue(
     Ok(queue)
 }
 
+pub fn get_queue_by_id(conn: &mut PgConnection, queue_id: i32) -> anyhow::Result<Queue> {
+    let queue = queues::table
+        .filter(queues::id.eq(queue_id))
+        .filter(queues::is_deleted.eq(false))
+        .select(queues::all_columns)
+        .first::<Queue>(conn)?;
+
+    Ok(queue)
+}
+
 pub fn shuffle_queue(conn: &mut PgConnection, queue_id: i32) -> anyhow::Result<()> {
     let mut rng = StdRng::from_entropy();
     let mut all_users = get_queue_users(conn, queue_id)?;
@@ -78,6 +88,17 @@ pub fn get_queue_users(conn: &mut PgConnection, queue_id: i32) -> anyhow::Result
         .select(queue_users::all_columns)
         .order(queue_users::position.asc())
         .load::<QueueUser>(conn)?;
+
+    Ok(users)
+}
+
+pub fn get_users(conn: &mut PgConnection, queue_id: i32) -> anyhow::Result<Vec<User>> {
+    let users = queue_users::table
+        .filter(queue_users::queue_id.eq(queue_id))
+        .inner_join(users::table)
+        .select(users::all_columns)
+        .order(queue_users::position.asc())
+        .load::<User>(conn)?;
 
     Ok(users)
 }
