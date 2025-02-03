@@ -1,4 +1,4 @@
-use crate::{bot::handler::HandlerResult, delete_message, param};
+use crate::{bot::handler::HandlerResult, delete_message, param, redis::RedisCache};
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::Requester,
@@ -53,6 +53,7 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let timetable = timetable_api_result.json::<serde_json::Value>().await?;
 
     import_timetable(conn, &msg.chat.id.to_string(), timetable).await?;
+    state.redis.clear_timetable_entries(msg.chat.id)?;
 
     let new_msg = bot
         .send_message(msg.chat.id, "Розклад успішно імпортовано ✅")

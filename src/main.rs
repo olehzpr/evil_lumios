@@ -60,7 +60,7 @@ async fn main() {
         dispatcher.dispatch().await;
     });
 
-    tokio::spawn(api::start());
+    tokio::spawn(api::start(state.clone()));
 
     if let Err(e) = cron::cron_loop(state.clone()).await {
         tracing::error!("Failed to start cron loop: {:?}", e);

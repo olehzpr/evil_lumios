@@ -10,6 +10,7 @@ pub mod setup;
 pub trait RedisCache {
     fn store_timetable_entries(&self, chat_id: ChatId, timetable_entries: Vec<TimetableEntry>) -> anyhow::Result<()>;
     fn get_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntry>>;
+    fn clear_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<()>;
     fn store_message(&self, message: Message) -> anyhow::Result<()>;
     fn get_message(&self, chat_id: ChatId, message_id: MessageId) -> anyhow::Result<Message>;
     fn store_user(&self, user: User) -> anyhow::Result<()>;
@@ -53,6 +54,18 @@ impl RedisCache for RedisStore {
         }
 
         Ok(entries)
+    }
+    fn clear_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<()> {
+        let mut con = self.get_connection()?;
+        let list_key = format!("timetable_entries:{}", chat_id);
+        let entry_ids: Vec<String> = con.lrange(&list_key, 0, -1)?;
+        for entry_id in entry_ids {
+            let key = format!("timetable_entry:{}:{}", chat_id, entry_id);
+            let _: () = con.del(&key)?;
+        }
+        let _: () = con.del(&list_key)?;
+
+        Ok(())
     }
     fn store_message(&self, message: Message) -> anyhow::Result<()> {
         let mut con = self.get_connection()?;

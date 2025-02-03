@@ -5,7 +5,7 @@ use crate::{bot::timetable::schedule::timetable_notifications, state::State};
 pub async fn cron_loop(state: State) -> anyhow::Result<()> {
     let scheduler = JobScheduler::new().await?;
 
-    let notifications = Job::new_async("1/10 * * * * *", move |_uuid, _lock| {
+    let notifications = Job::new_async("0 * * * * *", move |_uuid, _lock| {
         Box::pin(timetable_notifications(state.clone()))
     })?;
 
