@@ -1,9 +1,14 @@
-FROM rust:1.81 AS builder
+FROM rust:1.82-slim-bullseye AS builder
 
-WORKDIR /usr/src/app
+RUN apt-get update && \
+    apt-get install -y \
+    libpq-dev \
+    libssl-dev \
+    pkg-config \
+    build-essential \
+    curl
 
-# Install diesel CLI
-RUN cargo install diesel_cli --no-default-features --features postgres
+WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 
@@ -12,39 +17,32 @@ RUN mkdir src && \
 
 RUN cargo build --release
 
-RUN rm -f target/release/deps/evil_lumios*
+COPY src ./src
+COPY migrations ./migrations
 
-COPY . .
-
-# Build the application
 RUN cargo build --release
+
+RUN cargo install diesel_cli --no-default-features --features postgres --locked
 
 FROM debian:bullseye-slim
 
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    libssl-dev \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y \
+    libpq5 \
+    openssl \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy diesel CLI from builder
+COPY --from=builder /app/target/release/evil_lumios /app/evil_lumios
+
 COPY --from=builder /usr/local/cargo/bin/diesel /usr/local/bin/diesel
+COPY --from=builder /app/migrations /app/migrations
 
-# Copy migration files
-COPY --from=builder /usr/src/app/migrations ./migrations
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
 
-# Copy database configuration
-COPY --from=builder /usr/src/app/.env .env
-
-# Copy the built binary
-COPY --from=builder /usr/src/app/target/release/evil_lumios .
-
-EXPOSE 8080
-
-# Script to run migrations before starting the application
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
-
-CMD ["./entrypoint.sh"]
+EXPOSE 3000
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["/app/evil_lumios"]
