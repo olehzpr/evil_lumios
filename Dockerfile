@@ -22,7 +22,7 @@ COPY migrations ./migrations
 
 RUN cargo build --release
 
-RUN cargo install diesel_cli --features postgres
+RUN cargo install diesel_cli --no-default-features --features postgres
 
 FROM debian:bullseye-slim
 
