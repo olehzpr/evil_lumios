@@ -8,7 +8,7 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 # Run Diesel migrations
-diesel migration run --database-url "$DATABASE_URL" --verbose
+diesel migration run --database-url "$DATABASE_URL"
 
 # Start application
 echo "Starting application..."
