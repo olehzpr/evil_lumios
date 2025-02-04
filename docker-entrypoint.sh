@@ -7,10 +7,8 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-echo "DATABASE_URL: $DATABASE_URL"
-
 # Run Diesel migrations
-diesel migration run --database-url "$DATABASE_URL"
+diesel migration run --database-url "$DATABASE_URL" --verbose
 
 # Start application
 echo "Starting application..."
