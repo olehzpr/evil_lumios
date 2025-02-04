@@ -44,5 +44,7 @@ COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 3000
+EXPOSE 5432
+EXPOSE 6379
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["/app/evil_lumios"]
