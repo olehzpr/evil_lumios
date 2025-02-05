@@ -11,6 +11,7 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 # Run Diesel migrations
+echo "DATABASE_URL=$DATABASE_URL" > .env
 diesel setup || echo "Database already initialized"
 diesel migration run --database-url "$DATABASE_URL"
 
