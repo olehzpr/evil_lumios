@@ -1,10 +1,8 @@
 #!/bin/sh
 set -e
 
-until pg_isready --dbname=$DATABASE_URL; do
-  echo "Waiting for database..."
-  sleep 2
-done
+echo "Waiting for database..."
+sleep 3
 
 # Run migrations
 if [ -z "$DATABASE_URL" ]; then
