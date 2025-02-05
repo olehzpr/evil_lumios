@@ -2,7 +2,9 @@
 set -e
 
 echo "Waiting for database..."
-sleep 3
+until nc -z postgres 5432; do
+    sleep 1
+done
 
 # Run migrations
 if [ -z "$DATABASE_URL" ]; then
