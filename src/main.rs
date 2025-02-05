@@ -15,15 +15,13 @@ use dotenvy::dotenv;
 use state::{AppState, Event, State};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
 use tokio::signal;
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
-        .with_writer(std::io::stderr)
-        .with_span_events(FmtSpan::FULL)
         .init();
     tracing::info!("Starting app");
 
