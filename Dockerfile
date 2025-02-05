@@ -42,6 +42,8 @@ COPY --from=builder /app/migrations /app/migrations
 
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
+RUN chmod +x /app/evil_lumios
+
 
 EXPOSE 3000
 EXPOSE 5432
