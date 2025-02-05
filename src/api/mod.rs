@@ -34,6 +34,7 @@ pub mod stats;
 struct ApiDoc;
 
 pub async fn start(state: State) {
+    tracing::info!("Starting API server");
     let app = Router::new()
         .route("/", axum::routing::get(check_health))
         .route("/slots", axum::routing::get(slots))
@@ -44,5 +45,6 @@ pub async fn start(state: State) {
         .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    tracing::info!("Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }

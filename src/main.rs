@@ -19,11 +19,13 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
         .init();
+    tracing::info!("Starting app");
+
+    dotenv().ok();
 
     let pool = db::setup::establish_connection_pool();
     let redis = redis::setup::RedisStore::from_env();

@@ -29,6 +29,8 @@ impl RedisStore {
             }
         };
 
+        tracing::info!("Redis pool created");
+
         Self { pool }
     }
 
