@@ -1,4 +1,4 @@
-use r2d2_redis::redis::Commands;
+use r2d2_redis::redis::{Commands, ConnectionLike};
 use setup::RedisStore;
 use teloxide::types::{ChatId, Message, MessageId, UserId};
 
@@ -8,6 +8,7 @@ pub mod setup;
 
 #[rustfmt::skip]
 pub trait RedisCache {
+    fn clear_all_cache(&self) -> anyhow::Result<()>;
     fn store_timetable_entries(&self, chat_id: ChatId, timetable_entries: Vec<TimetableEntry>) -> anyhow::Result<()>;
     fn get_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntry>>;
     fn clear_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<()>;
@@ -22,6 +23,12 @@ pub trait RedisCache {
 }
 
 impl RedisCache for RedisStore {
+    fn clear_all_cache(&self) -> anyhow::Result<()> {
+        let mut con = self.get_connection()?;
+        con.req_packed_command(&redis::cmd("FLUSHALL").get_packed_command())?;
+        tracing::info!("All cache has been deleted");
+        Ok(())
+    }
     fn store_timetable_entries(
         &self,
         chat_id: ChatId,

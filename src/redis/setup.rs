@@ -1,5 +1,7 @@
 use r2d2_redis::RedisConnectionManager;
 
+use crate::redis::RedisCache;
+
 pub struct RedisStore {
     pub pool: r2d2_redis::r2d2::Pool<RedisConnectionManager>,
 }
@@ -31,7 +33,14 @@ impl RedisStore {
 
         tracing::info!("Redis pool created");
 
-        Self { pool }
+        let redis_store = Self { pool };
+
+        if let Err(e) = redis_store.clear_all_cache() {
+            tracing::error!("Failed to clear all cache: {:?}", e);
+            std::process::exit(1);
+        }
+
+        redis_store
     }
 
     pub fn get_connection(&self) -> anyhow::Result<r2d2::PooledConnection<RedisConnectionManager>> {
