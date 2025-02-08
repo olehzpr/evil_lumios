@@ -226,3 +226,18 @@ pub fn leave_from_priority_queue(
     }
     Ok(())
 }
+
+pub fn freeze_user(conn: &mut PgConnection, queue_id: i32, user_id: i32) -> anyhow::Result<()> {
+    let queue_user = get_queue_user(conn, queue_id, user_id)?;
+    if let Some(user) = queue_user {
+        diesel::update(queue_users::table)
+            .filter(
+                queue_users::queue_id
+                    .eq(queue_id)
+                    .and(queue_users::user_id.eq(user.id)),
+            )
+            .set(queue_users::is_freezed.eq(true))
+            .execute(conn)?;
+    }
+    Ok(())
+}

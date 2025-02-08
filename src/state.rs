@@ -22,6 +22,7 @@ const MAX_CHANNEL_CAPACITY: usize = 100;
 impl AppState {
     pub fn new(pool: DbPool, redis: RedisStore) -> Arc<Self> {
         let (event_tx, event_rx) = tokio::sync::broadcast::channel::<Event>(MAX_CHANNEL_CAPACITY);
+
         Arc::new(Self {
             pool,
             redis,

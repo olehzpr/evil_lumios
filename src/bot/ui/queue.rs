@@ -73,3 +73,10 @@ pub fn priority_queue(queue: &Queue, queue_users: Vec<QueueUser>, users: Vec<Use
     }
     message
 }
+
+pub fn notification(user: &User, queue: &Queue) -> String {
+    format!(
+        "{} - твоя черга відповідати в черзі '{}'",
+        user.name, queue.title
+    )
+}

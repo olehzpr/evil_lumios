@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use teloxide::{
     payloads::EditMessageTextSetters,
-    prelude::Requester,
+    prelude::{Request, Requester},
     types::{ChatId, InlineKeyboardButton, InlineKeyboardMarkup, MessageId},
     Bot,
 };
@@ -61,6 +61,7 @@ impl QueueMessages for Bot {
                 ],
             ]))
             .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .send()
             .await;
     }
 
@@ -94,6 +95,7 @@ impl QueueMessages for Bot {
                 )],
             ]))
             .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .send()
             .await;
     }
 
@@ -130,6 +132,7 @@ impl QueueMessages for Bot {
                 ],
             ]))
             .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .send()
             .await;
     }
 }
