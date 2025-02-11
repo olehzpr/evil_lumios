@@ -1,8 +1,9 @@
 use crate::{bot::handler::HandlerResult, delete_message, param, redis::RedisCache};
+use reqwest::Url;
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::Requester,
-    types::{LinkPreviewOptions, Message},
+    types::{InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Message},
     Bot,
 };
 
@@ -133,32 +134,84 @@ pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResu
 pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_current_entry(conn, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::entry_view(entry);
+    let res = ui::timetable::entry_view(entry.clone());
 
-    let new_msg = bot
-        .send_message(msg.chat.id, res)
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
-        .await?;
+    let bot_username = bot.get_me().await?.user.username.unwrap();
 
-    delete_message!(state, msg);
-    delete_message!(state, new_msg);
+    if let Some(entry) = entry {
+        let (inline_text, inline_link) = entry.link.map_or(
+            (
+                "Додати посилання 🔗",
+                format!(
+                    "https://t.me/{}?start=edit-timetable_{}",
+                    bot_username, entry.id
+                ),
+            ),
+            |link| ("Туда нам нада 🌐", link),
+        );
+
+        let new_msg = bot
+            .send_message(msg.chat.id, res)
+            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+            .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+                InlineKeyboardButton::url(inline_text, Url::parse(&inline_link).unwrap()),
+            ]]))
+            .await?;
+
+        delete_message!(state, msg);
+        delete_message!(state, new_msg);
+    } else {
+        let new_msg = bot
+            .send_message(msg.chat.id, res)
+            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+            .await?;
+        delete_message!(state, msg);
+        delete_message!(state, new_msg);
+    }
     Ok(())
 }
 
 pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let conn = &mut state.conn().await;
     let entry = get_next_entry(conn, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::entry_view(entry);
+    let res = ui::timetable::entry_view(entry.clone());
 
-    let new_msg = bot
-        .send_message(msg.chat.id, res)
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
-        .await?;
+    let bot_username = bot.get_me().await?.user.username.unwrap();
 
-    delete_message!(state, msg);
-    delete_message!(state, new_msg);
+    if let Some(entry) = entry {
+        let (inline_text, inline_link) = entry.link.map_or(
+            (
+                "Додати посилання 🔗",
+                format!(
+                    "https://t.me/{}?start=edit-timetable_{}",
+                    bot_username, entry.id
+                ),
+            ),
+            |link| ("Туда нам нада 🌐", link),
+        );
+
+        let new_msg = bot
+            .send_message(msg.chat.id, res)
+            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+            .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+                InlineKeyboardButton::url(inline_text, Url::parse(&inline_link).unwrap()),
+            ]]))
+            .await?;
+
+        delete_message!(state, msg);
+        delete_message!(state, new_msg);
+    } else {
+        let new_msg = bot
+            .send_message(msg.chat.id, res)
+            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+            .await?;
+        delete_message!(state, msg);
+        delete_message!(state, new_msg);
+    }
     Ok(())
 }
 

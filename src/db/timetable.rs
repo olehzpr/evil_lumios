@@ -97,7 +97,7 @@ pub async fn get_tomorrow_timetable(
     if day == Day::Sat {
         week = week.next();
     }
-    day.next();
+    let day = day.next();
 
     let entries = schema::timetable_entries::table
         .inner_join(
@@ -171,7 +171,9 @@ pub async fn get_current_entry(
         .filter(schema::timetables::chat_id.eq(chat_id))
         .filter(schema::timetable_entries::week.eq(week as i32))
         .filter(schema::timetable_entries::day.eq(day as i32))
-        .filter(schema::timetable_entries::class_time.ge(current_time))
+        .filter(
+            schema::timetable_entries::class_time.ge(current_time + chrono::Duration::minutes(5)),
+        )
         .select(schema::timetable_entries::all_columns)
         .order(schema::timetable_entries::class_time.asc())
         .first::<TimetableEntry>(conn)
@@ -195,7 +197,9 @@ pub async fn get_next_entry(
         .filter(schema::timetables::chat_id.eq(chat_id))
         .filter(schema::timetable_entries::week.eq(week as i32))
         .filter(schema::timetable_entries::day.eq(day as i32))
-        .filter(schema::timetable_entries::class_time.ge(current_time))
+        .filter(
+            schema::timetable_entries::class_time.ge(current_time + chrono::Duration::minutes(5)),
+        )
         .select(schema::timetable_entries::all_columns)
         .order(schema::timetable_entries::class_time.asc())
         .offset(1)

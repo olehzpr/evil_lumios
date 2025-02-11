@@ -46,6 +46,9 @@ async fn main() {
         tracing::error!("Failed to set bot commands: {:?}", e);
     }
 
+    let bot_name = bot.get_me().await.unwrap().user.username.unwrap();
+    std::env::set_var("EVIL_LUMIOS_USERNAME", bot_name);
+
     tokio::spawn(bot::event_handler::event_loop(bot.clone(), state.clone()));
 
     let mut dispatcher = Dispatcher::builder(bot, handler())

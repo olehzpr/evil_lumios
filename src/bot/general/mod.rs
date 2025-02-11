@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod message_handler;
 
+#[derive(Debug)]
 pub enum StartCommand {
     Start,
     EditTimetable { entry_id: i32 },

@@ -28,8 +28,11 @@ pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
 }
 
 pub async fn start(bot: Bot, dialogue: BotDialogue, msg: Message, state: State) -> HandlerResult {
+    tracing::debug!("Start command");
     if let Some(text) = msg.text() {
+        tracing::debug!("{:?}", text);
         let command = StartCommand::from_str(text);
+        tracing::debug!("{:?}", command);
         match command {
             Some(StartCommand::Start) => {
                 default(bot, msg).await?;

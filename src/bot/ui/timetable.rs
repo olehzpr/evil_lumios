@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, HashMap};
+
 use crate::{
     bot::timetable::{Day, Week},
     db::models::TimetableEntry,
@@ -6,15 +8,60 @@ use crate::{
 use super::utils::adapt_for_markdown;
 
 pub fn day_view(entries: Vec<TimetableEntry>) -> String {
-    let mut response = String::new();
+    let mut grouped_entries: BTreeMap<String, HashMap<String, Vec<TimetableEntry>>> =
+        BTreeMap::new();
+
     for entry in entries {
-        response.push_str(&entry_row(&entry, false));
+        let time_key = entry.class_time.format("%H:%M").to_string();
+        let type_key = class_type_label(&entry.class_type).to_string();
+
+        grouped_entries
+            .entry(time_key)
+            .or_insert_with(HashMap::new)
+            .entry(type_key)
+            .or_insert_with(Vec::new)
+            .push(entry);
     }
+
+    let mut response = String::new();
+
+    response.push_str("📅 *\\>\\> РОЗКЛАД \\<\\<* 📅\n\n");
+
+    for (time, class_types) in grouped_entries {
+        let type_keys: Vec<&String> = class_types.keys().collect();
+
+        if type_keys.len() == 1 {
+            response.push_str(&format!(
+                "*{} {} {}*\n",
+                get_time_emoji(&time),
+                time,
+                reverse_type_label(type_keys[0])
+            ));
+
+            for entry in class_types[type_keys[0]].iter() {
+                response.push_str(&format!("┃ {}\n", entry_row_no_time(entry)));
+            }
+        } else {
+            response.push_str(&format!("*{} {}*\n", get_time_emoji(&time), time));
+
+            for (class_type, group) in class_types {
+                response.push_str(&format!("{}\n", class_type));
+
+                for entry in group {
+                    response.push_str(&format!("┃ {}\n", entry_row_no_time(&entry)));
+                }
+            }
+        }
+
+        response.push('\n');
+    }
+
     if response.is_empty() {
         response = random_response();
     }
     return response;
 }
+
 pub fn week_view(entries: Vec<TimetableEntry>) -> String {
     let mut response = String::new();
     let mut day: Day = Day::Mon;
@@ -56,9 +103,13 @@ pub fn entry_view(entry: Option<TimetableEntry>) -> String {
     }
     let entry = entry.unwrap();
     let identifier = class_type_identifier(&entry.class_type);
+    let time = entry.class_time.format("%H:%M").to_string();
     adapt_for_markdown(format!(
-        "{} {}: {} {}\n",
-        identifier, entry.class_name, entry.class_type, entry.class_time
+        "🔔 *> НАГАДУВАННЯ* < 🔔\n\n{} {}\nПочаток: {} {}\n\nПосилання на конференцію ⬇️",
+        identifier,
+        entry.class_name,
+        time,
+        get_time_emoji(&time)
     ))
 }
 
@@ -96,12 +147,43 @@ fn entry_row(entry: &TimetableEntry, edit: bool) -> String {
     ))
 }
 
+fn entry_row_no_time(entry: &TimetableEntry) -> String {
+    let short_name = entry
+        .class_name
+        .split(|c| c == '.' || c == ':')
+        .next()
+        .unwrap();
+    let mut link = short_name.to_string();
+    if let Some(entry_link) = &entry.link {
+        link = format!("[{}]({})", short_name, entry_link);
+    }
+    adapt_for_markdown(format!("{}", link))
+}
+
 pub fn class_type_identifier(class_type: &str) -> &str {
     match class_type {
         "lec" => "🔵",
         "lab" => "🟢",
         "prac" => "🟠",
         _ => "🟣",
+    }
+}
+
+pub fn class_type_label(class_type: &str) -> &'static str {
+    match class_type {
+        "lec" => "🔵 Лекція:",
+        "lab" => "🟢 Лабораторна:",
+        "prac" => "🟠 Практика:",
+        _ => "🟣 Інше:",
+    }
+}
+
+pub fn reverse_type_label(class_type: &str) -> &'static str {
+    match class_type {
+        "🔵 Лекція:" => " Лекція 🔵:",
+        "🟢 Лабораторна:" => "Лабораторна 🟢:",
+        "🟠 Практика:" => "Практика 🟠:",
+        _ => "Інше 🟣:",
     }
 }
 
@@ -117,4 +199,19 @@ pub fn random_response() -> String {
         "Занять немає, але ти ж не безнадійний, знайди собі справу 📡",
     ];
     return responses[rand::random::<usize>() % responses.len()].to_string();
+}
+
+fn get_time_emoji(time: &String) -> String {
+    let emoji = match time.as_str() {
+        "08:30" => "🕣",
+        "10:25" => "🕥",
+        "12:20" => "🕧",
+        "14:15" => "🕑",
+        "16:10" => "🕓",
+        "18:05" => "🕕",
+        "20:00" => "🕖",
+        _ => "🕘",
+    };
+
+    emoji.to_string()
 }

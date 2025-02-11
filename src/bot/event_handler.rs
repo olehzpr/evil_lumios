@@ -5,7 +5,13 @@ use crate::{
     delete_message,
     state::{Event, State},
 };
-use teloxide::{payloads::SendMessageSetters, prelude::Requester, Bot};
+use reqwest::Url;
+use teloxide::{
+    payloads::SendMessageSetters,
+    prelude::Requester,
+    types::{InlineKeyboardButton, InlineKeyboardMarkup},
+    Bot,
+};
 
 use super::ui;
 
@@ -45,12 +51,41 @@ pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
                 let bot = arc_bot.clone();
                 let conn = &mut state.conn().await;
                 let entry = get_entry_by_id(conn, entry_id)?;
-                let res = ui::timetable::entry_view(entry);
-                let new_msg = bot
-                    .send_message(chat_id, res)
-                    .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-                    .await?;
-                delete_message!(state, new_msg);
+                let res = ui::timetable::entry_view(entry.clone());
+
+                let bot_username = bot.get_me().await?.user.username.unwrap();
+
+                if let Some(entry) = entry {
+                    let (inline_text, inline_link) = entry.link.map_or(
+                        (
+                            "Додати посилання 🔗",
+                            format!(
+                                "https://t.me/{}?start=edit-timetable_{}",
+                                bot_username, entry.id
+                            ),
+                        ),
+                        |link| ("Туда нам нада 🌐", link),
+                    );
+
+                    let new_msg = bot
+                        .send_message(chat_id, res)
+                        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+                        .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+                            InlineKeyboardButton::url(
+                                inline_text,
+                                Url::parse(&inline_link).unwrap(),
+                            ),
+                        ]]))
+                        .await?;
+
+                    delete_message!(state, new_msg);
+                } else {
+                    let new_msg = bot
+                        .send_message(chat_id, res)
+                        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+                        .await?;
+                    delete_message!(state, new_msg);
+                }
             }
         }
     }
