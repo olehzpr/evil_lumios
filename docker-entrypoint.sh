@@ -12,13 +12,13 @@ fi
 
 # Run Diesel migrations
 echo "DATABASE_URL=$DATABASE_URL" > .env
-diesel setup || echo "Database already initialized"
-diesel migration run --database-url "$DATABASE_URL"
+RUST_LOG=warn diesel setup || echo "Database already initialized"
+RUST_LOG=warn diesel migration run --database-url "$DATABASE_URL"
 
 # Start application
-echo "Starting application..."
-echo "/ directory"
+echo "Starting application..." >&2
+echo "/ directory" >&2
 ls -la /
-echo "/app directory"
+echo "/app directory" >&2
 ls -la /app
-exec /app/evil_lumios
+exec /app/evil_lumios >&2
