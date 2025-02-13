@@ -10,7 +10,9 @@ use crate::{
 };
 use crate::{delete_message, param};
 use reqwest::Url;
-use teloxide::payloads::{EditMessageReplyMarkupSetters, SendMessageSetters, SendPhotoSetters};
+use teloxide::payloads::{
+    EditMessageReplyMarkupSetters, SendAnimationSetters, SendMessageSetters, SendPhotoSetters,
+};
 use teloxide::prelude::Request;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, InputFile};
 use teloxide::{prelude::Requester, types::Message, Bot};
@@ -103,11 +105,14 @@ pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
         ui::stats::generate_lose_message(result.bet, result.bet + result.change)
     };
 
-    get_random_gif(&state, result.is_win).await?;
+    let gif = get_random_gif(&state, result.is_win).await?;
 
     insert_gamble(conn, result).await?;
 
-    bot.send_message(msg.chat.id, &content).await?;
+    bot.send_animation(msg.chat.id, InputFile::url(Url::parse(&gif).unwrap()))
+        .caption(&content)
+        .send()
+        .await?;
 
     Ok(())
 }
@@ -127,11 +132,16 @@ pub async fn gamble_all(bot: Bot, msg: Message, state: State) -> HandlerResult {
         ui::stats::generate_lose_message(result.bet, result.bet + result.change)
     };
 
-    get_random_gif(&state, result.is_win).await?;
+    let gif = get_random_gif(&state, result.is_win).await?;
+    let gif_url = Url::parse(&gif)?;
 
     insert_gamble(conn, result).await?;
 
-    bot.send_message(msg.chat.id, &content).await?;
+    bot.send_animation(msg.chat.id, InputFile::url(gif_url))
+        .caption(&content)
+        .send()
+        .await?;
+
     Ok(())
 }
 

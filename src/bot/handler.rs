@@ -21,6 +21,8 @@ use crate::{
 };
 use dptree::case;
 
+use super::timetable::external::receive_timetable_entry_link_from_message;
+
 pub type HandlerResult = anyhow::Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -60,10 +62,17 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
     let message_handler = Update::filter_message()
         .branch(command_handler)
         .branch(
+            case![StateMachine::ReceiveEditTimetableEntryFromMessage {
+                id,
+                chat_id,
+                message_id,
+            }]
+            .branch(dptree::endpoint(receive_timetable_entry_link_from_message)),
+        )
+        .branch(
             case![StateMachine::ReceiveEditTimetableEntry { id }]
                 .endpoint(receive_timetable_entry_link),
-        )
-        .branch(dptree::endpoint(general::message_handler::handler));
+        );
 
     let inline_handler = Update::filter_inline_query().endpoint(answer_inline_query);
 

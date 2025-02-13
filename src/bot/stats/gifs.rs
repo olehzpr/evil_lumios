@@ -35,7 +35,7 @@ pub async fn get_random_gif(state: &State, is_win: bool) -> anyhow::Result<Strin
             Some(
                 array
                     .iter()
-                    .map(|x| x["itemurl"].clone())
+                    .map(|x| x["media_formats"]["gif"]["url"].to_string())
                     .collect::<Vec<_>>(),
             )
         })
@@ -49,7 +49,7 @@ pub async fn get_random_gif(state: &State, is_win: bool) -> anyhow::Result<Strin
         }
     };
 
-    Ok(gif_url.to_string())
+    Ok(gif_url.trim_matches('"').to_string())
 }
 
 fn get_random_win_keyword() -> String {

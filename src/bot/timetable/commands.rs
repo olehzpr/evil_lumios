@@ -1,8 +1,8 @@
 use crate::{bot::handler::HandlerResult, delete_message, param, redis::RedisCache};
 use reqwest::Url;
 use teloxide::{
-    payloads::SendMessageSetters,
-    prelude::Requester,
+    payloads::{EditMessageReplyMarkupSetters, SendMessageSetters},
+    prelude::{Request, Requester},
     types::{InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Message},
     Bot,
 };
@@ -139,24 +139,28 @@ pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let bot_username = bot.get_me().await?.user.username.unwrap();
 
     if let Some(entry) = entry {
+        let new_msg = bot
+            .send_message(msg.chat.id, res)
+            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+            .await?;
+
         let (inline_text, inline_link) = entry.link.map_or(
             (
                 "Додати посилання 🔗",
                 format!(
-                    "https://t.me/{}?start=edit-timetable_{}",
-                    bot_username, entry.id
+                    "https://t.me/{}?start=edit-timetable-from-message_{}_{}_{}",
+                    bot_username, entry.id, msg.chat.id, new_msg.id,
                 ),
             ),
             |link| ("Туда нам нада 🌐", link),
         );
 
-        let new_msg = bot
-            .send_message(msg.chat.id, res)
-            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        bot.edit_message_reply_markup(new_msg.chat.id, new_msg.id)
             .reply_markup(InlineKeyboardMarkup::new(vec![vec![
                 InlineKeyboardButton::url(inline_text, Url::parse(&inline_link).unwrap()),
             ]]))
+            .send()
             .await?;
 
         delete_message!(state, msg);
@@ -181,24 +185,28 @@ pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let bot_username = bot.get_me().await?.user.username.unwrap();
 
     if let Some(entry) = entry {
+        let new_msg = bot
+            .send_message(msg.chat.id, res)
+            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+            .await?;
+
         let (inline_text, inline_link) = entry.link.map_or(
             (
                 "Додати посилання 🔗",
                 format!(
-                    "https://t.me/{}?start=edit-timetable_{}",
-                    bot_username, entry.id
+                    "https://t.me/{}?start=edit-timetable-from-message_{}_{}_{}",
+                    bot_username, entry.id, msg.chat.id, new_msg.id,
                 ),
             ),
             |link| ("Туда нам нада 🌐", link),
         );
 
-        let new_msg = bot
-            .send_message(msg.chat.id, res)
-            .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-            .link_preview_options(DISABLED_LINK_PREVIEW_OPTIONS)
+        bot.edit_message_reply_markup(new_msg.chat.id, new_msg.id)
             .reply_markup(InlineKeyboardMarkup::new(vec![vec![
                 InlineKeyboardButton::url(inline_text, Url::parse(&inline_link).unwrap()),
             ]]))
+            .send()
             .await?;
 
         delete_message!(state, msg);

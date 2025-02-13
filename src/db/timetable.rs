@@ -4,11 +4,16 @@ use diesel::{
 use serde_json::Value;
 
 use crate::{
-    bot::timetable::{Day, Week},
+    bot::{
+        timetable::{Day, Week},
+        utils::time::get_current_time,
+    },
     schema,
 };
 
 use super::models::{NewTimetable, NewTimetableEntry, Timetable, TimetableEntry};
+
+const OFFSET: chrono::TimeDelta = chrono::Duration::minutes(5);
 
 pub async fn import_timetable(
     conn: &mut PgConnection,
@@ -162,7 +167,10 @@ pub async fn get_current_entry(
 ) -> anyhow::Result<Option<TimetableEntry>> {
     let week = Week::current();
     let day = Day::current();
-    let current_time = chrono::Utc::now().time();
+    let now = get_current_time() - OFFSET;
+
+    tracing::info!("Current time: {}", now.time());
+
     let entry = schema::timetable_entries::table
         .inner_join(
             schema::timetables::table
@@ -171,11 +179,9 @@ pub async fn get_current_entry(
         .filter(schema::timetables::chat_id.eq(chat_id))
         .filter(schema::timetable_entries::week.eq(week as i32))
         .filter(schema::timetable_entries::day.eq(day as i32))
-        .filter(
-            schema::timetable_entries::class_time.ge(current_time + chrono::Duration::minutes(5)),
-        )
+        .order(schema::timetable_entries::class_time.desc())
+        .filter(schema::timetable_entries::class_time.le(now.time()))
         .select(schema::timetable_entries::all_columns)
-        .order(schema::timetable_entries::class_time.asc())
         .first::<TimetableEntry>(conn)
         .optional()?;
 
@@ -188,7 +194,8 @@ pub async fn get_next_entry(
 ) -> anyhow::Result<Option<TimetableEntry>> {
     let week = Week::current();
     let day = Day::current();
-    let current_time = chrono::Utc::now().time();
+    let now = get_current_time() - OFFSET;
+
     let entry = schema::timetable_entries::table
         .inner_join(
             schema::timetables::table
@@ -197,12 +204,9 @@ pub async fn get_next_entry(
         .filter(schema::timetables::chat_id.eq(chat_id))
         .filter(schema::timetable_entries::week.eq(week as i32))
         .filter(schema::timetable_entries::day.eq(day as i32))
-        .filter(
-            schema::timetable_entries::class_time.ge(current_time + chrono::Duration::minutes(5)),
-        )
-        .select(schema::timetable_entries::all_columns)
         .order(schema::timetable_entries::class_time.asc())
-        .offset(1)
+        .filter(schema::timetable_entries::class_time.ge(now.time()))
+        .select(schema::timetable_entries::all_columns)
         .first::<TimetableEntry>(conn)
         .optional()?;
 

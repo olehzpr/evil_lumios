@@ -2,6 +2,7 @@ use chrono::Timelike;
 use teloxide::types::ChatId;
 
 use crate::{
+    bot::utils::time::get_current_time,
     db::{self, models::TimetableEntry, timetable::get_full_timetable, StateWithConnection},
     redis::RedisCache,
     state::{Event, State},
@@ -19,8 +20,7 @@ pub async fn timetable_notifications(state: State) {
                 return;
             }
         };
-        let timezone_offset = chrono::FixedOffset::east_opt(2 * 3600).unwrap();
-        let now = chrono::Utc::now().with_timezone(&timezone_offset);
+        let now = get_current_time();
         let current_week = Week::current() as i32;
         let current_day = Day::current() as i32;
         for entry in entries.iter() {

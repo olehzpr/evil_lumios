@@ -1,6 +1,12 @@
-use crate::{bot::handler::HandlerResult, state::State};
+use crate::{bot::handler::HandlerResult, db::timetable::get_entry_by_id, state::State};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use teloxide::{prelude::Requester, types::Message, Bot};
+use reqwest::Url;
+use teloxide::{
+    payloads::EditMessageReplyMarkupSetters,
+    prelude::{Request, Requester},
+    types::{ChatId, InlineKeyboardButton, InlineKeyboardMarkup, Message, MessageId},
+    Bot,
+};
 
 use crate::{
     config::state::{BotDialogue, StateMachine},
@@ -41,5 +47,32 @@ pub async fn receive_timetable_entry_link(
                 .await?;
         }
     }
+    Ok(())
+}
+
+pub async fn receive_timetable_entry_link_from_message(
+    bot: Bot,
+    dialogue: BotDialogue,
+    msg: Message,
+    (id, chat_id, message_id): (i32, ChatId, MessageId),
+    state: State,
+) -> HandlerResult {
+    let conn = &mut state.conn().await;
+    receive_timetable_entry_link(bot.clone(), dialogue, msg, id, state).await?;
+    tracing::debug!("Editing message");
+    let entry = get_entry_by_id(conn, id)?;
+    if entry.is_none() {
+        return Ok(());
+    }
+    let entry = entry.unwrap();
+    bot.edit_message_reply_markup(chat_id, message_id)
+        .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+            InlineKeyboardButton::url(
+                "Туда нам нада 🌐",
+                Url::parse(&entry.link.unwrap_or_default()).unwrap(),
+            ),
+        ]]))
+        .send()
+        .await?;
     Ok(())
 }
