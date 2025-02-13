@@ -17,4 +17,8 @@ diesel migration run --database-url "$DATABASE_URL"
 
 # Start application
 echo "Starting application..."
+echo "/ directory"
+ls -la /
+echo "/app directory"
+ls -la /app
 exec /app/evil_lumios

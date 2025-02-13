@@ -1,4 +1,4 @@
-use r2d2_redis::redis::{Commands, ConnectionLike};
+use r2d2_redis::redis::Commands;
 use setup::RedisStore;
 use teloxide::types::{ChatId, Message, MessageId, UserId};
 
@@ -24,9 +24,13 @@ pub trait RedisCache {
 
 impl RedisCache for RedisStore {
     fn clear_all_cache(&self) -> anyhow::Result<()> {
-        let mut con = self.get_connection()?;
-        con.req_packed_command(&redis::cmd("FLUSHALL").get_packed_command())?;
-        tracing::info!("All cache has been deleted");
+        #[cfg(not(debug_assertions))]
+        {
+            use r2d2_redis::redis::ConnectionLike;
+            let mut con = self.get_connection()?;
+            con.req_packed_command(&redis::cmd("FLUSHALL").get_packed_command())?;
+            tracing::info!("All cache has been deleted");
+        }
         Ok(())
     }
     fn store_timetable_entries(
@@ -113,7 +117,6 @@ impl RedisCache for RedisStore {
         let key = format!("user:{}", user_id);
         let serialized: String = con.get(&key)?;
         let user: User = serde_json::from_str(&serialized)?;
-
         Ok(user)
     }
     fn store_chat(&self, chat: Chat) -> anyhow::Result<()> {

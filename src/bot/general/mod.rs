@@ -20,7 +20,6 @@ pub enum StartCommand {
 impl StartCommand {
     pub fn from_str(s: &str) -> Option<Self> {
         let parts: Vec<&str> = s.split('_').collect();
-        println!("{:?}", parts);
         match parts.as_slice() {
             ["/start edit-timetable", entry_id] => {
                 let entry_id = entry_id.parse().ok()?;
