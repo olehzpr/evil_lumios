@@ -1,4 +1,5 @@
-use crate::db::{models::UserStats, stats::FullStats};
+use crate::db::stats::FullStats;
+use crate::entities::user_stats::Model as UserStats;
 
 use super::utils::adapt_for_markdown;
 use rand::seq::SliceRandom;

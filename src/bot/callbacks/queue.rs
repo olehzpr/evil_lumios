@@ -12,7 +12,6 @@ use crate::{
         self,
         queue::{add_user_to_queue, get_queue_by_id, get_users},
         user::get_user_by_account_id,
-        StateWithConnection,
     },
     state::State,
 };
@@ -24,15 +23,14 @@ pub async fn join_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Joining queue {}", queue_id);
-    let conn = &mut state.conn().await;
     let stored_user = get_user_by_account_id(&state, query.from.id).await?;
-    if let Err(err) = add_user_to_queue(conn, queue_id, stored_user.id, None) {
+    if let Err(err) = add_user_to_queue(&state.db, queue_id, stored_user.id, None).await {
         tracing::error!("Failed to join queue: {:?}", err);
         bot.answer_callback_query(query.id).await?;
         return Ok(());
     };
-    let queue = get_queue_by_id(conn, queue_id)?;
-    let users = get_users(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
     let message_id = queue.message_id.parse::<i32>().unwrap();
     let chat_id = queue.chat_id.parse::<i64>().unwrap();
@@ -76,12 +74,11 @@ pub async fn leave_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Leaving queue {}", queue_id);
-    let conn = &mut state.conn().await;
     let stored_user = get_user_by_account_id(&state, query.from.id).await?;
-    db::queue::remove_user_from_queue(conn, queue_id, stored_user.id)?;
+    db::queue::remove_user_from_queue(&state.db, queue_id, stored_user.id).await?;
 
-    let queue = get_queue_by_id(conn, queue_id)?;
-    let users = get_users(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
     let message_id = queue.message_id.parse::<i32>().unwrap();
     let chat_id = queue.chat_id.parse::<i64>().unwrap();
@@ -124,10 +121,9 @@ pub async fn delete_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Deleting queue {}", queue_id);
-    let conn = &mut state.conn().await;
-    let queue = get_queue_by_id(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
 
-    db::queue::delete_queue(conn, queue.id)?;
+    db::queue::delete_queue(&state.db, queue.id).await?;
 
     let message_id = queue.message_id.clone().parse::<i32>().unwrap();
 
@@ -144,9 +140,8 @@ pub async fn notify_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Notifying queue {}", queue_id);
-    let conn = &mut state.conn().await;
-    let queue = get_queue_by_id(conn, queue_id)?;
-    let users = get_users(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
     if users.is_empty() {
         return Ok(());
     }
@@ -167,11 +162,10 @@ pub async fn shuffle_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Shuffling queue {}", queue_id);
-    let conn = &mut state.conn().await;
-    db::queue::shuffle_queue(conn, queue_id)?;
+    db::queue::shuffle_queue(&state.db, queue_id).await?;
 
-    let queue = get_queue_by_id(conn, queue_id)?;
-    let users = get_users(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
     let message_id = queue.message_id.parse::<i32>().unwrap();
     let updated_content = ui::queue::regular_queue(&queue, users);
@@ -194,15 +188,14 @@ pub async fn freeze_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Freezing queue {}", queue_id);
-    let conn = &mut state.conn().await;
 
     let user_id = query.from.id;
     let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    db::queue::freeze_user(conn, queue_id, user_who_clicked.id)?;
+    db::queue::freeze_user(&state.db, queue_id, user_who_clicked.id).await?;
 
-    let queue = get_queue_by_id(conn, queue_id)?;
-    let users = get_users(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
     let message_id = queue.message_id.parse::<i32>().unwrap();
     let updated_content = ui::queue::regular_queue(&queue, users);
@@ -225,15 +218,14 @@ pub async fn skip_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("Skipping queue {}", queue_id);
-    let conn = &mut state.conn().await;
 
     let user_id = query.from.id;
     let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    db::queue::leave_from_priority_queue(conn, queue_id, user_who_clicked.id)?;
+    db::queue::leave_from_priority_queue(&state.db, queue_id, user_who_clicked.id).await?;
 
-    let queue = get_queue_by_id(conn, queue_id)?;
-    let users = get_users(conn, queue_id)?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
     let message_id = queue.message_id.parse::<i32>().unwrap();
     let updated_content = ui::queue::regular_queue(&queue, users);

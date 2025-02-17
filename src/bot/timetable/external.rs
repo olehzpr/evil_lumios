@@ -1,17 +1,15 @@
-use crate::{bot::handler::HandlerResult, db::timetable::get_entry_by_id, state::State};
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use crate::config::state::{BotDialogue, StateMachine};
+use crate::{
+    bot::handler::HandlerResult,
+    db::timetable::{get_entry_by_id, update_link},
+    state::State,
+};
 use reqwest::Url;
 use teloxide::{
     payloads::EditMessageReplyMarkupSetters,
     prelude::{Request, Requester},
     types::{ChatId, InlineKeyboardButton, InlineKeyboardMarkup, Message, MessageId},
     Bot,
-};
-
-use crate::{
-    config::state::{BotDialogue, StateMachine},
-    db::StateWithConnection,
-    schema,
 };
 
 pub async fn receive_timetable_entry_link(
@@ -34,10 +32,7 @@ pub async fn receive_timetable_entry_link(
                     .await?;
                 return Ok(());
             }
-            let conn = &mut state.conn().await;
-            diesel::update(schema::timetable_entries::table.find(id))
-                .set(schema::timetable_entries::link.eq(link))
-                .execute(conn)?;
+            update_link(&state.db, id, link).await?;
             bot.send_message(msg.chat.id, "Посилання успішно змінено")
                 .await?;
             dialogue.exit().await?;
@@ -57,10 +52,9 @@ pub async fn receive_timetable_entry_link_from_message(
     (id, chat_id, message_id): (i32, ChatId, MessageId),
     state: State,
 ) -> HandlerResult {
-    let conn = &mut state.conn().await;
-    receive_timetable_entry_link(bot.clone(), dialogue, msg, id, state).await?;
+    receive_timetable_entry_link(bot.clone(), dialogue, msg, id, state.clone()).await?;
     tracing::debug!("Editing message");
-    let entry = get_entry_by_id(conn, id)?;
+    let entry = get_entry_by_id(&state.db, id).await?;
     if entry.is_none() {
         return Ok(());
     }

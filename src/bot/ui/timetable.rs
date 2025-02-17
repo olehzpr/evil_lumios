@@ -1,9 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::{
-    bot::timetable::{Day, Week},
-    db::models::TimetableEntry,
-};
+use crate::bot::timetable::{Day, Week};
+use crate::entities::timetable_entries::Model as TimetableEntry;
 
 use super::utils::adapt_for_markdown;
 

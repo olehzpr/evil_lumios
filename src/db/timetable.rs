@@ -1,6 +1,4 @@
-use diesel::{
-    ExpressionMethods, JoinOnDsl, OptionalExtension, PgConnection, QueryDsl, RunQueryDsl,
-};
+use sea_orm::{entity::*, query::*, DatabaseConnection};
 use serde_json::Value;
 
 use crate::{
@@ -8,35 +6,43 @@ use crate::{
         timetable::{Day, Week},
         utils::time::get_current_time,
     },
-    schema,
+    entities::{timetable_entries, timetables},
 };
 
-use super::models::{NewTimetable, NewTimetableEntry, Timetable, TimetableEntry};
+use crate::entities::timetable_entries::Entity as TimetableEntry;
+use crate::entities::timetables::Entity as Timetable;
 
-const OFFSET: chrono::TimeDelta = chrono::Duration::minutes(5);
+const OFFSET: chrono::Duration = chrono::Duration::minutes(5);
 
 pub async fn import_timetable(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
     timetable: Value,
 ) -> anyhow::Result<()> {
-    let existing_timetable = schema::timetables::table
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .first::<Timetable>(conn)
-        .optional()?;
+    let existing_timetable = Timetable::find()
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .one(conn)
+        .await?;
+
     if let Some(existing_timetable) = existing_timetable {
-        diesel::delete(schema::timetable_entries::table)
-            .filter(schema::timetable_entries::timetable_id.eq(existing_timetable.id))
-            .execute(conn)?;
-        diesel::delete(schema::timetables::table)
-            .filter(schema::timetables::chat_id.eq(chat_id))
-            .execute(conn)?;
+        TimetableEntry::delete_many()
+            .filter(timetable_entries::Column::TimetableId.eq(existing_timetable.id))
+            .exec(conn)
+            .await?;
+        Timetable::delete_many()
+            .filter(timetables::Column::ChatId.eq(chat_id))
+            .exec(conn)
+            .await?;
     }
 
-    let created_timetable = diesel::insert_into(schema::timetables::table)
-        .values(NewTimetable { chat_id: chat_id })
-        .get_result::<Timetable>(conn)?;
-    let mut entries: Vec<NewTimetableEntry> = vec![];
+    let created_timetable = timetables::ActiveModel {
+        chat_id: Set(chat_id.to_string()),
+        ..Default::default()
+    }
+    .insert(conn)
+    .await?;
+
+    let mut entries: Vec<timetable_entries::ActiveModel> = vec![];
     for (week, schedule_key) in [
         (Week::First, "scheduleFirstWeek"),
         (Week::Second, "scheduleSecondWeek"),
@@ -45,58 +51,56 @@ pub async fn import_timetable(
             for (index, day) in days.iter().enumerate() {
                 if let Some(pairs) = day["pairs"].as_array() {
                     for entry in pairs {
-                        entries.push(NewTimetableEntry {
-                            timetable_id: created_timetable.id,
-                            week: week as i32,
-                            day: index as i32,
-                            class_name: entry["name"].as_str().unwrap(),
-                            class_type: entry["tag"].as_str().unwrap(),
-                            class_time: chrono::NaiveTime::parse_from_str(
+                        entries.push(timetable_entries::ActiveModel {
+                            timetable_id: Set(created_timetable.id),
+                            week: Set(week as i32),
+                            day: Set(index as i32),
+                            class_name: Set(entry["name"].as_str().unwrap().to_string()),
+                            class_type: Set(entry["tag"].as_str().unwrap().to_string()),
+                            class_time: Set(chrono::NaiveTime::parse_from_str(
                                 entry["time"].as_str().unwrap(),
                                 "%H:%M",
-                            )
-                            .unwrap(),
-                            link: None,
+                            )?),
+                            link: Set(None),
+                            ..Default::default()
                         });
                     }
                 }
             }
         }
     }
-    entries.iter().for_each(|entry| {
-        diesel::insert_into(schema::timetable_entries::table)
-            .values(entry)
-            .execute(conn)
-            .unwrap();
-    });
+
+    for entry in entries {
+        entry.insert(conn).await?;
+    }
 
     Ok(())
 }
 
 pub async fn get_today_timetable(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
-) -> anyhow::Result<Vec<TimetableEntry>> {
+) -> anyhow::Result<Vec<timetable_entries::Model>> {
     let week = Week::current();
     let day = Day::current();
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
+    let entries = TimetableEntry::find()
+        .join(
+            JoinType::InnerJoin,
+            timetables::Relation::TimetableEntries.def(),
         )
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .filter(schema::timetable_entries::week.eq(week as i32))
-        .filter(schema::timetable_entries::day.eq(day as i32))
-        .select(schema::timetable_entries::all_columns)
-        .load::<TimetableEntry>(conn)?;
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .filter(timetable_entries::Column::Week.eq(week as i32))
+        .filter(timetable_entries::Column::Day.eq(day as i32))
+        .all(conn)
+        .await?;
 
-    return Ok(entries);
+    Ok(entries)
 }
 
 pub async fn get_tomorrow_timetable(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
-) -> anyhow::Result<Vec<TimetableEntry>> {
+) -> anyhow::Result<Vec<timetable_entries::Model>> {
     let mut week = Week::current();
     let day = Day::current();
     if day == Day::Sat {
@@ -104,123 +108,131 @@ pub async fn get_tomorrow_timetable(
     }
     let day = day.next();
 
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
+    let entries = TimetableEntry::find()
+        .join(
+            JoinType::InnerJoin,
+            timetables::Relation::TimetableEntries.def(),
         )
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .filter(schema::timetable_entries::week.eq(week as i32))
-        .filter(schema::timetable_entries::day.eq(day as i32))
-        .select(schema::timetable_entries::all_columns)
-        .load::<TimetableEntry>(conn)?;
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .filter(timetable_entries::Column::Week.eq(week as i32))
+        .filter(timetable_entries::Column::Day.eq(day as i32))
+        .all(conn)
+        .await?;
 
     Ok(entries)
 }
 
 pub async fn get_week_timetable(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
-) -> anyhow::Result<Vec<TimetableEntry>> {
+) -> anyhow::Result<Vec<timetable_entries::Model>> {
     let week = Week::current();
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
+    let entries = TimetableEntry::find()
+        .join(
+            JoinType::InnerJoin,
+            timetables::Relation::TimetableEntries.def(),
         )
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .filter(schema::timetable_entries::week.eq(week as i32))
-        .select(schema::timetable_entries::all_columns)
-        .order((
-            schema::timetable_entries::day.asc(),
-            schema::timetable_entries::class_time.asc(),
-        ))
-        .load::<TimetableEntry>(conn)?;
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .filter(timetable_entries::Column::Week.eq(week as i32))
+        .order_by_asc(timetable_entries::Column::Day)
+        .order_by_asc(timetable_entries::Column::ClassTime)
+        .all(conn)
+        .await?;
 
-    return Ok(entries);
+    Ok(entries)
 }
 
 pub async fn get_full_timetable(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
-) -> anyhow::Result<Vec<TimetableEntry>> {
-    let entries = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
+) -> anyhow::Result<Vec<timetable_entries::Model>> {
+    let entries = TimetableEntry::find()
+        .join(
+            JoinType::InnerJoin,
+            timetables::Relation::TimetableEntries.def(),
         )
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .select(schema::timetable_entries::all_columns)
-        .order((
-            schema::timetable_entries::week.asc(),
-            schema::timetable_entries::day.asc(),
-            schema::timetable_entries::class_time.asc(),
-        ))
-        .load::<TimetableEntry>(conn)?;
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .order_by_asc(timetable_entries::Column::Week)
+        .order_by_asc(timetable_entries::Column::Day)
+        .order_by_asc(timetable_entries::Column::ClassTime)
+        .all(conn)
+        .await?;
 
-    return Ok(entries);
+    Ok(entries)
 }
 
 pub async fn get_current_entry(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
-) -> anyhow::Result<Option<TimetableEntry>> {
+) -> anyhow::Result<Option<timetable_entries::Model>> {
     let week = Week::current();
     let day = Day::current();
     let now = get_current_time() - OFFSET;
 
     tracing::info!("Current time: {}", now.time());
 
-    let entry = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
+    let entry = TimetableEntry::find()
+        .join(
+            JoinType::InnerJoin,
+            timetables::Relation::TimetableEntries.def(),
         )
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .filter(schema::timetable_entries::week.eq(week as i32))
-        .filter(schema::timetable_entries::day.eq(day as i32))
-        .order(schema::timetable_entries::class_time.desc())
-        .filter(schema::timetable_entries::class_time.le(now.time()))
-        .select(schema::timetable_entries::all_columns)
-        .first::<TimetableEntry>(conn)
-        .optional()?;
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .filter(timetable_entries::Column::Week.eq(week as i32))
+        .filter(timetable_entries::Column::Day.eq(day as i32))
+        .filter(timetable_entries::Column::ClassTime.lte(now.time()))
+        .order_by_desc(timetable_entries::Column::ClassTime)
+        .one(conn)
+        .await?;
 
     Ok(entry)
 }
 
 pub async fn get_next_entry(
-    conn: &mut PgConnection,
+    conn: &DatabaseConnection,
     chat_id: &str,
-) -> anyhow::Result<Option<TimetableEntry>> {
+) -> anyhow::Result<Option<timetable_entries::Model>> {
     let week = Week::current();
     let day = Day::current();
     let now = get_current_time() - OFFSET;
 
-    let entry = schema::timetable_entries::table
-        .inner_join(
-            schema::timetables::table
-                .on(schema::timetable_entries::timetable_id.eq(schema::timetables::id)),
+    let entry = TimetableEntry::find()
+        .join(
+            JoinType::InnerJoin,
+            timetables::Relation::TimetableEntries.def(),
         )
-        .filter(schema::timetables::chat_id.eq(chat_id))
-        .filter(schema::timetable_entries::week.eq(week as i32))
-        .filter(schema::timetable_entries::day.eq(day as i32))
-        .order(schema::timetable_entries::class_time.asc())
-        .filter(schema::timetable_entries::class_time.ge(now.time()))
-        .select(schema::timetable_entries::all_columns)
-        .first::<TimetableEntry>(conn)
-        .optional()?;
+        .filter(timetables::Column::ChatId.eq(chat_id))
+        .filter(timetable_entries::Column::Week.eq(week as i32))
+        .filter(timetable_entries::Column::Day.eq(day as i32))
+        .filter(timetable_entries::Column::ClassTime.gte(now.time()))
+        .order_by_asc(timetable_entries::Column::ClassTime)
+        .one(conn)
+        .await?;
 
     Ok(entry)
 }
 
-pub fn get_entry_by_id(
-    conn: &mut PgConnection,
+pub async fn get_entry_by_id(
+    conn: &DatabaseConnection,
     entry_id: i32,
-) -> anyhow::Result<Option<TimetableEntry>> {
-    let entry = schema::timetable_entries::table
-        .filter(schema::timetable_entries::id.eq(entry_id))
-        .first::<TimetableEntry>(conn)
-        .optional()?;
+) -> anyhow::Result<Option<timetable_entries::Model>> {
+    let entry = TimetableEntry::find_by_id(entry_id).one(conn).await?;
 
     Ok(entry)
+}
+pub async fn update_link(
+    conn: &DatabaseConnection,
+    entry_id: i32,
+    link: &str,
+) -> anyhow::Result<()> {
+    let entry: Option<timetable_entries::ActiveModel> = TimetableEntry::find_by_id(entry_id)
+        .one(conn)
+        .await?
+        .map(Into::into);
+
+    if let Some(mut entry) = entry {
+        entry.link = Set(Some(link.to_string()));
+        entry.update(conn).await?;
+    }
+
+    Ok(())
 }

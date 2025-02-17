@@ -3,7 +3,8 @@ use teloxide::types::ChatId;
 
 use crate::{
     bot::utils::time::get_current_time,
-    db::{self, models::TimetableEntry, timetable::get_full_timetable, StateWithConnection},
+    db::{self, timetable::get_full_timetable},
+    entities::timetable_entries::Model as TimetableEntry,
     redis::RedisCache,
     state::{Event, State},
 };
@@ -41,21 +42,19 @@ pub async fn timetable_notifications(state: State) {
 }
 
 async fn get_chat_ids(state: &State) -> anyhow::Result<Vec<ChatId>> {
-    let conn = &mut state.conn().await;
     if let Ok(chat_ids) = state.redis.get_all_chat_ids() {
         return Ok(chat_ids);
     }
-    let chat_ids = db::chat::get_chat_ids(conn).await?;
+    let chat_ids = db::chat::get_chat_ids(&state.db).await?;
     state.redis.store_chat_ids(chat_ids.clone())?;
     Ok(chat_ids)
 }
 
 async fn get_entries(state: &State, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntry>> {
-    let conn = &mut state.conn().await;
     if let Ok(entries) = state.redis.get_timetable_entries(chat_id) {
         return Ok(entries);
     }
-    let entries = get_full_timetable(conn, &chat_id.to_string()).await?;
+    let entries = get_full_timetable(&state.db, &chat_id.to_string()).await?;
     state
         .redis
         .store_timetable_entries(chat_id, entries.clone())?;

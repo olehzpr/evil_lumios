@@ -1,7 +1,7 @@
 use std::{env, sync::Arc, time::Duration};
 
 use crate::{
-    db::{timetable::get_entry_by_id, StateWithConnection},
+    db::timetable::get_entry_by_id,
     delete_message,
     state::{Event, State},
 };
@@ -49,8 +49,7 @@ pub async fn event_loop(bot: Bot, state: State) -> anyhow::Result<()> {
             }
             Event::Notify { chat_id, entry_id } => {
                 let bot = arc_bot.clone();
-                let conn = &mut state.conn().await;
-                let entry = get_entry_by_id(conn, entry_id)?;
+                let entry = get_entry_by_id(&state.db, entry_id).await?;
                 let res = ui::timetable::entry_view(entry.clone());
 
                 let bot_username = bot.get_me().await?.user.username.unwrap();

@@ -2,7 +2,9 @@ use r2d2_redis::redis::Commands;
 use setup::RedisStore;
 use teloxide::types::{ChatId, Message, MessageId, UserId};
 
-use crate::db::models::{Chat, TimetableEntry, User};
+use crate::entities::{
+    chats::Model as Chat, timetable_entries::Model as TimetableEntry, users::Model as User,
+};
 
 pub mod setup;
 

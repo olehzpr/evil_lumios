@@ -1,19 +1,19 @@
 FROM rust:1.82-slim-bullseye AS builder
 
 RUN apt-get update && \
-    apt-get install -y \
-    libpq-dev \
-    libssl-dev \
-    pkg-config \
-    build-essential \
-    curl
+  apt-get install -y \
+  libpq-dev \
+  libssl-dev \
+  pkg-config \
+  build-essential \
+  curl
 
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 
 RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs
+  echo "fn main() {}" > src/main.rs
 
 RUN cargo build --release
 
@@ -27,11 +27,11 @@ RUN cargo install diesel_cli --no-default-features --features postgres
 FROM debian:bullseye-slim
 
 RUN apt-get update && \
-    apt-get install -y \
-    libpq5 \
-    openssl \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+  apt-get install -y \
+  libpq5 \
+  openssl \
+  ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -48,4 +48,9 @@ EXPOSE 1337
 EXPOSE 6969
 EXPOSE 1448
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD RUST_LOG=warn diesel setup || echo "Database already initialized" && \
+  RUST_LOG=warn diesel migration run --database-url "$DATABASE_URL" && \
+  ls -la /app && \
+  ls -la /app/src && \
+  sleep 100 && \
+  exec /app/evil_lumios

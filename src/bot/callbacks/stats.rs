@@ -5,11 +5,7 @@ use teloxide::{
     Bot,
 };
 
-use crate::{
-    bot::handler::HandlerResult,
-    db::{stats::get_full_me, StateWithConnection},
-    state::State,
-};
+use crate::{bot::handler::HandlerResult, db::stats::get_full_me, state::State};
 
 pub async fn show_full_stats(
     bot: Bot,
@@ -19,8 +15,7 @@ pub async fn show_full_stats(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("message_id: {:?}, user_id: {:?}", message_id, user_id);
-    let conn = &mut state.conn().await;
-    let stats = get_full_me(conn, user_id).await?;
+    let stats = get_full_me(&state.db, user_id).await?;
     let res = crate::bot::ui::stats::full_stats(stats);
     let chat_id = query.message.as_ref().unwrap().chat().id;
     bot.edit_message_text(chat_id, message_id, res)

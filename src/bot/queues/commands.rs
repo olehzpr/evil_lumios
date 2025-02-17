@@ -1,94 +1,87 @@
 use crate::bot::ui;
-use crate::db::models::NewQueue;
-use crate::db::queue::create_queue;
-use crate::db::StateWithConnection;
-use crate::param;
-use crate::{bot::handler::HandlerResult, delete_message, State};
+use crate::delete_message;
+use crate::entities::queues;
+use crate::state::State;
+use crate::{bot::handler::HandlerResult, param};
+use sea_orm::entity::*;
 use teloxide::{
     prelude::Requester,
     types::{ChatId, Message},
     Bot,
 };
 
-use super::QueueMessages;
-
 pub async fn queue(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut state.conn().await;
     let name = param!(bot, msg, state, String, "Вкажіть назву черги");
 
     let loading_msg = loading_message(&bot, msg.chat.id).await?;
 
-    let new_queue = create_queue(
-        conn,
-        NewQueue {
-            title: &name,
-            chat_id: &msg.chat.id.to_string(),
-            message_id: &loading_msg.id.to_string(),
-            is_mixed: None,
-            is_priority: false,
-        },
-    )?;
-    bot.edit_regular_queue(
+    let _new_queue = queues::ActiveModel {
+        title: Set(name.clone()),
+        chat_id: Set(msg.chat.id.to_string()),
+        message_id: Set(loading_msg.id.to_string()),
+        is_mixed: Set(None),
+        is_priority: Set(false),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await?;
+
+    bot.edit_message_text(
         loading_msg.chat.id,
         loading_msg.id,
-        new_queue.id,
-        &ui::queue::start_message(name, ui::queue::QueueType::Regular),
+        ui::queue::start_message(name, ui::queue::QueueType::Regular),
     )
-    .await;
+    .await?;
     Ok(())
 }
 
 pub async fn mixed(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut state.conn().await;
     let name = param!(bot, msg, state, String, "Вкажіть назву черги");
 
     let loading_msg = loading_message(&bot, msg.chat.id).await?;
 
-    let new_queue = create_queue(
-        conn,
-        NewQueue {
-            title: &name,
-            chat_id: &msg.chat.id.to_string(),
-            message_id: &loading_msg.id.to_string(),
-            is_mixed: Some(false),
-            is_priority: false,
-        },
-    )?;
+    let _new_queue = queues::ActiveModel {
+        title: Set(name.clone()),
+        chat_id: Set(msg.chat.id.to_string()),
+        message_id: Set(loading_msg.id.to_string()),
+        is_mixed: Set(Some(true)),
+        is_priority: Set(false),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await?;
 
-    bot.edit_mixed_queue(
+    bot.edit_message_text(
         loading_msg.chat.id,
         loading_msg.id,
-        new_queue.id,
-        &ui::queue::start_message(name, ui::queue::QueueType::Mixed),
+        ui::queue::start_message(name, ui::queue::QueueType::Mixed),
     )
-    .await;
+    .await?;
     Ok(())
 }
 
 pub async fn priority_queue(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut state.conn().await;
     let name = param!(bot, msg, state, String, "Вкажіть назву черги");
 
     let loading_msg = loading_message(&bot, msg.chat.id).await?;
 
-    let new_queue = create_queue(
-        conn,
-        NewQueue {
-            title: &name,
-            chat_id: &msg.chat.id.to_string(),
-            message_id: &loading_msg.id.to_string(),
-            is_mixed: None,
-            is_priority: true,
-        },
-    )?;
+    let _new_queue = queues::ActiveModel {
+        title: Set(name.clone()),
+        chat_id: Set(msg.chat.id.to_string()),
+        message_id: Set(loading_msg.id.to_string()),
+        is_mixed: Set(None),
+        is_priority: Set(true),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await?;
 
-    bot.edit_priority_queue(
+    bot.edit_message_text(
         loading_msg.chat.id,
         loading_msg.id,
-        new_queue.id,
-        &ui::queue::start_message(name, ui::queue::QueueType::Priority),
+        ui::queue::start_message(name, ui::queue::QueueType::Priority),
     )
-    .await;
+    .await?;
     Ok(())
 }
 

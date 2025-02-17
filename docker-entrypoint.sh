@@ -12,4 +12,6 @@ RUST_LOG=warn diesel setup || echo "Database already initialized"
 RUST_LOG=warn diesel migration run --database-url "$DATABASE_URL"
 
 # Start application
+ls -la /app
+
 exec /app/evil_lumios

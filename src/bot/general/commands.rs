@@ -1,5 +1,4 @@
-use crate::{bot::handler::HandlerResult, state::State};
-use diesel::{QueryDsl, RunQueryDsl};
+use crate::{bot::handler::HandlerResult, db::timetable::get_entry_by_id, state::State};
 use reqwest::Url;
 use teloxide::{
     payloads::{SendMessageSetters, SendPhotoSetters},
@@ -18,8 +17,6 @@ use crate::{
         commands::Command,
         state::{BotDialogue, StateMachine},
     },
-    db::{models::TimetableEntry, StateWithConnection},
-    schema,
 };
 
 use super::StartCommand;
@@ -80,13 +77,13 @@ async fn edit_timetable_entry(
     msg: Message,
     state: State,
 ) -> anyhow::Result<()> {
-    let conn = &mut state.conn().await;
-    let entry = schema::timetable_entries::table
-        .find(entry_id)
-        .first::<TimetableEntry>(conn)?;
-    bot.send_message(msg.chat.id, ui::timetable::update_link_view(&entry))
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .await?;
+    let entry = get_entry_by_id(&state.db, entry_id).await?;
+    bot.send_message(
+        msg.chat.id,
+        ui::timetable::update_link_view(&entry.unwrap()),
+    )
+    .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+    .await?;
     dialogue
         .update(StateMachine::ReceiveEditTimetableEntry { id: entry_id })
         .await?;
@@ -122,13 +119,13 @@ async fn edit_timetable_entry_from_message(
     msg: Message,
     state: State,
 ) -> anyhow::Result<()> {
-    let conn = &mut state.conn().await;
-    let entry = schema::timetable_entries::table
-        .find(entry_id)
-        .first::<TimetableEntry>(conn)?;
-    bot.send_message(msg.chat.id, ui::timetable::update_link_view(&entry))
-        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
-        .await?;
+    let entry = get_entry_by_id(&state.db, entry_id).await?;
+    bot.send_message(
+        msg.chat.id,
+        ui::timetable::update_link_view(&entry.unwrap()),
+    )
+    .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+    .await?;
     dialogue
         .update(StateMachine::ReceiveEditTimetableEntryFromMessage {
             id: entry_id,

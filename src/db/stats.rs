@@ -1,9 +1,10 @@
-use diesel::{Connection, ExpressionMethods, JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl};
+use sea_orm::{entity::*, query::*, DatabaseConnection};
 use teloxide::types::UserId;
 
-use crate::schema;
+use crate::entities::{gambles, user_stats, users};
 
-use super::models::{Gamble, User, UserStats};
+use crate::entities::gambles::Entity as Gamble;
+use crate::entities::user_stats::Entity as UserStats;
 
 pub struct FullStats {
     pub user_id: i32,
@@ -21,29 +22,31 @@ pub struct FullStats {
     pub average_bet: f32,
 }
 
-pub async fn get_user_stats(conn: &mut PgConnection, user_id: UserId) -> anyhow::Result<UserStats> {
-    let stats = schema::user_stats::table
-        .inner_join(schema::users::table.on(schema::users::id.eq(schema::user_stats::user_id)))
-        .filter(schema::users::account_id.eq(user_id.to_string()))
-        .select(schema::user_stats::all_columns)
-        .first::<UserStats>(conn)?;
+pub async fn get_user_stats(
+    conn: &DatabaseConnection,
+    user_id: UserId,
+) -> anyhow::Result<user_stats::Model> {
+    let stats = UserStats::find()
+        .filter(users::Column::AccountId.eq(user_id.to_string()))
+        .one(conn)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
 
     Ok(stats)
 }
 
-pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Result<FullStats> {
-    let stats = schema::user_stats::table
-        .inner_join(schema::users::table.on(schema::users::id.eq(schema::user_stats::user_id)))
-        .filter(schema::users::account_id.eq(user_id.to_string()))
-        .select(schema::user_stats::all_columns)
-        .first::<UserStats>(conn)?;
+pub async fn get_full_me(conn: &DatabaseConnection, user_id: UserId) -> anyhow::Result<FullStats> {
+    let stats = UserStats::find()
+        .filter(users::Column::AccountId.eq(user_id.to_string()))
+        .one(conn)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
 
-    let all_gambles = schema::gambles::table
-        .inner_join(schema::users::table.on(schema::users::id.eq(schema::gambles::user_id)))
-        .filter(schema::users::account_id.eq(user_id.to_string()))
-        .select(schema::gambles::all_columns)
-        .order(schema::gambles::created_at.asc())
-        .load::<Gamble>(conn)?;
+    let all_gambles = Gamble::find()
+        .filter(users::Column::AccountId.eq(user_id.to_string()))
+        .order_by_asc(gambles::Column::CreatedAt)
+        .all(conn)
+        .await?;
 
     let mut total_won = 0;
     let mut total_lost = 0;
@@ -109,40 +112,45 @@ pub async fn get_full_me(conn: &mut PgConnection, user_id: UserId) -> anyhow::Re
 }
 
 pub async fn transfer_reaction_points(
-    conn: &mut PgConnection,
-    sender: User,
-    receiver: User,
+    conn: &DatabaseConnection,
+    sender: users::Model,
+    receiver: users::Model,
     points: i32,
 ) -> anyhow::Result<()> {
-    conn.transaction::<_, anyhow::Error, _>(|tx| {
-        use schema::user_stats;
+    let txn = conn.begin().await?;
 
-        let sender_stats = user_stats::table
-            .filter(user_stats::user_id.eq(sender.id))
-            .first::<UserStats>(tx)?;
-        let receiver_stats = user_stats::table
-            .filter(user_stats::user_id.eq(receiver.id))
-            .first::<UserStats>(tx)?;
+    let sender_stats = UserStats::find()
+        .filter(user_stats::Column::UserId.eq(sender.id))
+        .one(&txn)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Sender stats not found"))?;
 
-        let available = sender_stats.daily_limit - sender_stats.daily_used;
-        let actual = if available > points {
-            points
-        } else {
-            available
-        };
+    let receiver_stats = UserStats::find()
+        .filter(user_stats::Column::UserId.eq(receiver.id))
+        .one(&txn)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Receiver stats not found"))?;
 
-        if actual == 0 {
-            return Ok(());
-        }
+    let available = sender_stats.daily_limit - sender_stats.daily_used;
+    let actual = if available > points {
+        points
+    } else {
+        available
+    };
 
-        diesel::update(user_stats::table.filter(user_stats::user_id.eq(sender.id)))
-            .set(user_stats::daily_used.eq(sender_stats.daily_used + actual))
-            .execute(tx)?;
+    if actual == 0 {
+        txn.rollback().await?;
+        return Ok(());
+    }
 
-        diesel::update(user_stats::table.filter(user_stats::user_id.eq(receiver.id)))
-            .set(user_stats::balance.eq(receiver_stats.balance + actual))
-            .execute(tx)?;
+    let mut sender_stats: user_stats::ActiveModel = sender_stats.into();
+    sender_stats.daily_used = Set(sender_stats.daily_used.unwrap() + actual);
+    sender_stats.update(&txn).await?;
 
-        Ok(())
-    })
+    let mut receiver_stats: user_stats::ActiveModel = receiver_stats.into();
+    receiver_stats.balance = Set(receiver_stats.balance.unwrap() + actual);
+    receiver_stats.update(&txn).await?;
+
+    txn.commit().await?;
+    Ok(())
 }

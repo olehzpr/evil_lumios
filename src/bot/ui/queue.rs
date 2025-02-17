@@ -1,4 +1,6 @@
-use crate::db::models::{Queue, QueueUser, User};
+use crate::entities::queue_users::Model as QueueUser;
+use crate::entities::queues::Model as Queue;
+use crate::entities::users::Model as User;
 
 pub enum QueueType {
     Regular,

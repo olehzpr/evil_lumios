@@ -3,6 +3,7 @@ pub mod bot;
 pub mod config;
 pub mod cron;
 pub mod db;
+pub mod entities;
 pub mod redis;
 pub mod schema;
 pub mod state;
@@ -15,7 +16,7 @@ use dotenvy::dotenv;
 use state::{AppState, Event, State};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
 use tokio::signal;
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
@@ -24,15 +25,13 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
-        .with_writer(std::io::stderr)
-        .with_span_events(FmtSpan::FULL)
         .init();
     tracing::info!("Starting app");
 
-    let pool = db::setup::establish_connection_pool();
+    let db = db::setup::connect_db().await;
     let redis = redis::setup::RedisStore::from_env();
 
-    let state = AppState::new(pool, redis);
+    let state = AppState::new(db, redis);
 
     let bot_token = match env::var("TELOXIDE_TOKEN") {
         Ok(token) => token,
@@ -47,9 +46,6 @@ async fn main() {
     if let Err(e) = Command::set_bot_commands(&bot).await {
         tracing::error!("Failed to set bot commands: {:?}", e);
     }
-
-    let bot_name = bot.get_me().await.unwrap().user.username.unwrap();
-    std::env::set_var("EVIL_LUMIOS_USERNAME", bot_name);
 
     tokio::spawn(bot::event_handler::event_loop(bot.clone(), state.clone()));
 

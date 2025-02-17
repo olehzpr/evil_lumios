@@ -27,7 +27,7 @@ services:
       - redisdata:/data
 
   app:
-    build: olehzpr/evil_lumios
+    build: .
     depends_on:
       db:
         condition: service_healthy

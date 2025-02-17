@@ -3,11 +3,7 @@ use crate::bot::utils::random::get_random_bool;
 use crate::db::gamble::{insert_gamble, GambleDto, GambleType};
 use crate::db::user::get_user_by_account_id;
 use crate::state::Event;
-use crate::{
-    bot::ui,
-    db::{stats::get_user_stats, StateWithConnection},
-    State,
-};
+use crate::{bot::ui, db::stats::get_user_stats, State};
 use crate::{delete_message, param};
 use reqwest::Url;
 use teloxide::payloads::{
@@ -47,9 +43,8 @@ pub async fn casino(bot: Bot, msg: Message, state: State) -> HandlerResult {
 }
 
 pub async fn me(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut state.conn().await;
     let user_id = msg.from.as_ref().unwrap().id;
-    let stats = get_user_stats(conn, msg.from.unwrap().id).await?;
+    let stats = get_user_stats(&state.db, msg.from.unwrap().id).await?;
     let res = ui::stats::short_stats(stats);
     if let Err(e) = state.sender.send(Event::DeleteMessage {
         chat_id: msg.chat.id,
@@ -88,8 +83,6 @@ pub async fn wheel(bot: Bot, msg: Message, _state: State) -> HandlerResult {
 }
 
 pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut state.conn().await;
-
     let amount = param!(bot, msg, state, u32, "Вкажіть ціле невідʼємне число");
 
     let result = make_bet(&state, &msg, Amount::Value(amount)).await;
@@ -107,7 +100,7 @@ pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
     let gif = get_random_gif(&state, result.is_win).await?;
 
-    insert_gamble(conn, result).await?;
+    insert_gamble(&state.db, result).await?;
 
     bot.send_animation(msg.chat.id, InputFile::url(Url::parse(&gif).unwrap()))
         .caption(&content)
@@ -118,8 +111,6 @@ pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
 }
 
 pub async fn gamble_all(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let conn = &mut state.conn().await;
-
     let result = make_bet(&state, &msg, Amount::All).await;
     if let Err(error) = result {
         bot.send_message(msg.chat.id, error.to_string()).await?;
@@ -135,7 +126,7 @@ pub async fn gamble_all(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let gif = get_random_gif(&state, result.is_win).await?;
     let gif_url = Url::parse(&gif)?;
 
-    insert_gamble(conn, result).await?;
+    insert_gamble(&state.db, result).await?;
 
     bot.send_animation(msg.chat.id, InputFile::url(gif_url))
         .caption(&content)
@@ -151,10 +142,9 @@ enum Amount {
 }
 
 async fn make_bet(state: &State, msg: &Message, amount: Amount) -> anyhow::Result<GambleDto> {
-    let conn = &mut state.conn().await;
     let user = msg.from.as_ref().unwrap();
     let stored_user = get_user_by_account_id(&state, user.id).await?;
-    let user_stats = get_user_stats(conn, user.id).await?; //fix error handling;
+    let user_stats = get_user_stats(&state.db, user.id).await?; //fix error handling;
 
     let amount = match amount {
         Amount::All => user_stats.balance as u32,

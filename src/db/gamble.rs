@@ -1,7 +1,7 @@
-use diesel::{PgConnection, RunQueryDsl};
+use sea_orm::{entity::*, DatabaseConnection};
 use teloxide::types::MessageId;
 
-use super::models::NewGamble;
+use crate::entities::gambles;
 
 pub enum GambleType {
     Bet,
@@ -35,16 +35,17 @@ pub struct GambleDto {
     pub gamble_type: GambleType,
 }
 
-pub async fn insert_gamble(conn: &mut PgConnection, gamble: GambleDto) -> anyhow::Result<()> {
-    diesel::insert_into(crate::schema::gambles::table)
-        .values(NewGamble {
-            user_id: gamble.user_id,
-            message_id: gamble.message_id.to_string(),
-            is_win: gamble.is_win,
-            change: gamble.change,
-            bet: gamble.bet,
-            gamble_type: gamble.gamble_type.into(),
-        })
-        .execute(conn)?;
+pub async fn insert_gamble(conn: &DatabaseConnection, gamble: GambleDto) -> anyhow::Result<()> {
+    let new_gamble = gambles::ActiveModel {
+        user_id: Set(gamble.user_id),
+        message_id: Set(gamble.message_id.to_string()),
+        is_win: Set(gamble.is_win),
+        change: Set(gamble.change),
+        bet: Set(gamble.bet),
+        gamble_type: Set(gamble.gamble_type.into()),
+        ..Default::default()
+    };
+
+    new_gamble.insert(conn).await?;
     Ok(())
 }
