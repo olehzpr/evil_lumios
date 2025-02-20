@@ -13,8 +13,7 @@ pub async fn connect_db() -> DatabaseConnection {
     options
         .max_connections(20)
         .min_connections(1)
-        .connect_timeout(Duration::from_secs(20))
-        .sqlx_logging(true);
+        .connect_timeout(Duration::from_secs(20));
 
     match Database::connect(options).await {
         Ok(db) => {
