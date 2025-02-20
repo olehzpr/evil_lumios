@@ -40,9 +40,13 @@ pub enum Event {
         chat_id: ChatId,
         message_id: MessageId,
     },
-    Notify {
+    NotifyTimetable {
         chat_id: ChatId,
         entry_id: i32,
+    },
+    GambleResult {
+        chat_id: ChatId,
+        gamble_id: i32,
     },
     Exit,
 }

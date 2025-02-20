@@ -6,9 +6,7 @@ use crate::state::Event;
 use crate::{bot::ui, db::stats::get_user_stats, State};
 use crate::{delete_message, param};
 use reqwest::Url;
-use teloxide::payloads::{
-    EditMessageReplyMarkupSetters, SendAnimationSetters, SendMessageSetters, SendPhotoSetters,
-};
+use teloxide::payloads::{EditMessageReplyMarkupSetters, SendMessageSetters, SendPhotoSetters};
 use teloxide::prelude::Request;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, InputFile};
 use teloxide::{prelude::Requester, types::Message, Bot};
@@ -90,22 +88,26 @@ pub async fn gamble(bot: Bot, msg: Message, state: State) -> HandlerResult {
         bot.send_message(msg.chat.id, error.to_string()).await?;
         return Ok(());
     }
-    let result = result.unwrap();
-
-    let content = if result.is_win {
-        ui::stats::generate_win_message(result.bet, result.bet + result.change)
-    } else {
-        ui::stats::generate_lose_message(result.bet, result.bet + result.change)
-    };
+    let mut result = result.unwrap();
 
     let gif = get_random_gif(&state, result.is_win).await?;
 
-    insert_gamble(&state.db, result).await?;
-
-    bot.send_animation(msg.chat.id, InputFile::url(Url::parse(&gif).unwrap()))
-        .caption(&content)
+    let new_msg = bot
+        .send_animation(msg.chat.id, InputFile::url(Url::parse(&gif).unwrap()))
         .send()
         .await?;
+
+    result.message_id = new_msg.id;
+
+    let gamble = insert_gamble(&state.db, result).await?;
+
+    state.sender.send(Event::GambleResult {
+        chat_id: msg.chat.id,
+        gamble_id: gamble.id,
+    })?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
 
     Ok(())
 }
@@ -116,22 +118,26 @@ pub async fn gamble_all(bot: Bot, msg: Message, state: State) -> HandlerResult {
         bot.send_message(msg.chat.id, error.to_string()).await?;
         return Ok(());
     }
-    let result = result.unwrap();
-    let content = if result.is_win {
-        ui::stats::generate_win_message(result.bet, result.bet + result.change)
-    } else {
-        ui::stats::generate_lose_message(result.bet, result.bet + result.change)
-    };
+    let mut result = result.unwrap();
 
     let gif = get_random_gif(&state, result.is_win).await?;
-    let gif_url = Url::parse(&gif)?;
 
-    insert_gamble(&state.db, result).await?;
-
-    bot.send_animation(msg.chat.id, InputFile::url(gif_url))
-        .caption(&content)
+    let new_msg = bot
+        .send_animation(msg.chat.id, InputFile::url(Url::parse(&gif).unwrap()))
         .send()
         .await?;
+
+    result.message_id = new_msg.id;
+
+    let gamble = insert_gamble(&state.db, result).await?;
+
+    state.sender.send(Event::GambleResult {
+        chat_id: msg.chat.id,
+        gamble_id: gamble.id,
+    })?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
 
     Ok(())
 }

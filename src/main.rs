@@ -47,7 +47,7 @@ async fn main() {
         tracing::error!("Failed to set bot commands: {:?}", e);
     }
 
-    tokio::spawn(bot::event_handler::event_loop(bot.clone(), state.clone()));
+    tokio::spawn(bot::events::event_loop(bot.clone(), state.clone()));
 
     let mut dispatcher = Dispatcher::builder(bot, handler())
         .dependencies(dptree::deps![

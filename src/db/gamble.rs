@@ -35,7 +35,10 @@ pub struct GambleDto {
     pub gamble_type: GambleType,
 }
 
-pub async fn insert_gamble(conn: &DatabaseConnection, gamble: GambleDto) -> anyhow::Result<()> {
+pub async fn insert_gamble(
+    conn: &DatabaseConnection,
+    gamble: GambleDto,
+) -> anyhow::Result<gambles::Model> {
     let new_gamble = gambles::ActiveModel {
         user_id: Set(gamble.user_id),
         message_id: Set(gamble.message_id.to_string()),
@@ -46,6 +49,14 @@ pub async fn insert_gamble(conn: &DatabaseConnection, gamble: GambleDto) -> anyh
         ..Default::default()
     };
 
-    new_gamble.insert(conn).await?;
-    Ok(())
+    let inserted_gamble = new_gamble.insert(conn).await?;
+    Ok(inserted_gamble)
+}
+
+pub async fn get_gamble_by_id(
+    conn: &DatabaseConnection,
+    id: i32,
+) -> anyhow::Result<Option<gambles::Model>> {
+    let gamble = gambles::Entity::find_by_id(id).one(conn).await?;
+    Ok(gamble)
 }

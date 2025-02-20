@@ -32,7 +32,7 @@ pub async fn timetable_notifications(state: State) {
             if (class_time.hour() as i32) == (now.hour() as i32)
                 && (class_time.minute() as i32) - (now.minute() as i32) == 3
             {
-                _ = state.sender.send(Event::Notify {
+                _ = state.sender.send(Event::NotifyTimetable {
                     chat_id,
                     entry_id: entry.id,
                 });

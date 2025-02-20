@@ -1,7 +1,7 @@
 use teloxide::prelude::ResponseResult;
 
 pub mod callbacks;
-pub mod event_handler;
+pub mod events;
 pub mod general;
 pub mod handler;
 pub mod inline;

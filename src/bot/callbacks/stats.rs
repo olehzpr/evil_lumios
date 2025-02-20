@@ -15,6 +15,10 @@ pub async fn show_full_stats(
     query: CallbackQuery,
 ) -> HandlerResult {
     tracing::debug!("message_id: {:?}, user_id: {:?}", message_id, user_id);
+    if query.from.id != user_id {
+        bot.answer_callback_query(query.id).await?;
+        return Ok(());
+    }
     let stats = get_full_me(&state.db, user_id).await?;
     let res = crate::bot::ui::stats::full_stats(stats);
     let chat_id = query.message.as_ref().unwrap().chat().id;
