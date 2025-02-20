@@ -1,6 +1,7 @@
 use axum::Json;
+use serde::Serialize;
 
-#[derive(utoipa::ToSchema, serde::Serialize)]
+#[derive(Serialize)]
 pub struct GambleResult {
     id: i32,
     gamble_type: String,
@@ -9,20 +10,12 @@ pub struct GambleResult {
     is_win: bool,
 }
 
-#[derive(utoipa::ToSchema, serde::Serialize)]
+#[derive(Serialize)]
 pub struct Slot {}
 
-#[derive(utoipa::ToSchema, serde::Serialize)]
+#[derive(Serialize)]
 pub struct Roulette {}
 
-#[utoipa::path(
-    post,
-    path = "/slots",
-    request_body = Slot,
-    responses(
-        (status = 200, description = "Gamble Result", body = GambleResult)
-    )
-)]
 pub async fn slots() -> Json<GambleResult> {
     Json(GambleResult {
         id: 1,
@@ -33,14 +26,6 @@ pub async fn slots() -> Json<GambleResult> {
     })
 }
 
-#[utoipa::path(
-    post,
-    path = "/routette",
-    request_body = Roulette,
-    responses(
-        (status = 200, description = "Gamble Result", body = GambleResult)
-    )
-)]
 pub async fn roulette() -> Json<GambleResult> {
     Json(GambleResult {
         id: 1,

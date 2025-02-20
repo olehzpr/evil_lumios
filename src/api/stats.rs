@@ -1,33 +1,24 @@
 use axum::Json;
+use serde::Serialize;
 
-#[derive(utoipa::ToSchema, serde::Serialize)]
+#[derive(Serialize)]
 pub struct User {
     id: i32,
     username: String,
     balance: i32,
 }
 
-#[derive(utoipa::ToSchema, serde::Serialize)]
+#[derive(Serialize)]
 pub struct Stats {
     users: Vec<User>,
 }
 
-#[derive(utoipa::ToSchema, serde::Serialize, utoipa::IntoParams)]
+#[derive(Serialize)]
 pub struct Pagination {
     offset: i32,
     limit: i32,
 }
 
-#[utoipa::path(
-    get,
-    path = "/stats",
-    params(
-        Pagination
-    ),
-    responses(
-        (status = 200, description = "App is working", body = Stats),
-    )
-)]
 pub async fn stats() -> Json<Stats> {
     Json(Stats {
         users: vec![

@@ -1,26 +1,17 @@
 use axum::Json;
+use serde::Serialize;
 
-#[derive(utoipa::ToSchema, serde::Serialize)]
+#[derive(Serialize)]
 pub struct ClickResponse {
     status: String,
     available: i32,
 }
 
-#[derive(utoipa::ToSchema, serde::Serialize, utoipa::IntoParams)]
+#[derive(Serialize)]
 pub struct UserId {
     id: i32,
 }
 
-#[utoipa::path(
-    put,
-    path = "/clicker",
-    params(
-        UserId
-    ),
-    responses(
-        (status = 200, description = "Click for points", body = ClickResponse),
-    )
-)]
 pub async fn click() -> Json<ClickResponse> {
     Json(ClickResponse {
         available: 100,
