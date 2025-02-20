@@ -38,6 +38,7 @@ pub async fn get_user_stats(
 
 pub async fn get_full_me(conn: &DatabaseConnection, user_id: UserId) -> anyhow::Result<FullStats> {
     let stats = UserStats::find()
+        .join(JoinType::InnerJoin, user_stats::Relation::Users.def())
         .filter(users::Column::AccountId.eq(user_id.to_string()))
         .one(conn)
         .await?

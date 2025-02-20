@@ -90,8 +90,8 @@ fn lose_with_case(n: i32) -> &'static str {
 
 pub fn casino_welcome() -> (String, String) {
     let text = adapt_for_markdown(
-    "Я бачу, ти вирішив випробувати свою удачу в казино. Що ж, прямуй за мною... наш шлях починається."
-    .to_string());
+        "Я бачу, ти вирішив випробувати свою удачу в казино. Що ж, прямуй за мною... ".to_string(),
+    );
     let image_url =
         "https://vrwf71w421.ufs.sh/f/Mb9Zy1a6B3fQTVV8sDLHXoq2JsGady4L3cntPhFrezAMZ1kl".to_string();
     (text, image_url)
@@ -102,7 +102,7 @@ pub fn casino_arrival() -> (String, String) {
     "Ось ми й дісталися до казино. Тепер залишилося лише відчинити двері й зробити перший крок у світ ризику та азарту... але пам’ятай, ти можеш і не повернутися."
     .to_string());
     let image_url =
-        "https://vrwf71w421.ufs.sh/f/Mb9Zy1a6B3fQeXVcpUy4tiJaTF63qupnIx8gHBh0WbLws1DY".to_string();
+        "https://vrwf71w421.ufs.sh/f/Mb9Zy1a6B3fQ8EEacjfufjuG6RN3BPKe7SqXbFxp4oWgDzwL".to_string();
     (text, image_url)
 }
 
