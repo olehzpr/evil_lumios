@@ -1,5 +1,5 @@
 [phases.setup]
-aptPkgs = ['libpq-dev', 'pkg-config']
+aptPkgs = ['libpq-dev', 'pkg-config', 'build-essential', 'clang']
 
 [phases.build]
 cmds = [
