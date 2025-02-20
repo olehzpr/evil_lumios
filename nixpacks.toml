@@ -2,7 +2,7 @@
 aptPkgs = ['libpq-dev', 'pkg-config']
 
 [phases.build]
-cmds = ['cargo build --release']
+cmds = ["cd /app && cargo build --release"]
 
 [phases.runtime]
 aptPkgs = ['libpq5', 'libssl3']
