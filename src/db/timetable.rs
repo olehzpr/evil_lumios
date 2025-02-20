@@ -86,7 +86,7 @@ pub async fn get_today_timetable(
     let entries = TimetableEntry::find()
         .join(
             JoinType::InnerJoin,
-            timetables::Relation::TimetableEntries.def(),
+            timetable_entries::Relation::Timetables.def(),
         )
         .filter(timetables::Column::ChatId.eq(chat_id))
         .filter(timetable_entries::Column::Week.eq(week as i32))
@@ -111,7 +111,7 @@ pub async fn get_tomorrow_timetable(
     let entries = TimetableEntry::find()
         .join(
             JoinType::InnerJoin,
-            timetables::Relation::TimetableEntries.def(),
+            timetable_entries::Relation::Timetables.def(),
         )
         .filter(timetables::Column::ChatId.eq(chat_id))
         .filter(timetable_entries::Column::Week.eq(week as i32))
@@ -130,7 +130,7 @@ pub async fn get_week_timetable(
     let entries = TimetableEntry::find()
         .join(
             JoinType::InnerJoin,
-            timetables::Relation::TimetableEntries.def(),
+            timetable_entries::Relation::Timetables.def(),
         )
         .filter(timetables::Column::ChatId.eq(chat_id))
         .filter(timetable_entries::Column::Week.eq(week as i32))
@@ -149,7 +149,7 @@ pub async fn get_full_timetable(
     let entries = TimetableEntry::find()
         .join(
             JoinType::InnerJoin,
-            timetables::Relation::TimetableEntries.def(),
+            timetable_entries::Relation::Timetables.def(),
         )
         .filter(timetables::Column::ChatId.eq(chat_id))
         .order_by_asc(timetable_entries::Column::Week)
@@ -174,7 +174,7 @@ pub async fn get_current_entry(
     let entry = TimetableEntry::find()
         .join(
             JoinType::InnerJoin,
-            timetables::Relation::TimetableEntries.def(),
+            timetable_entries::Relation::Timetables.def(),
         )
         .filter(timetables::Column::ChatId.eq(chat_id))
         .filter(timetable_entries::Column::Week.eq(week as i32))
@@ -198,7 +198,7 @@ pub async fn get_next_entry(
     let entry = TimetableEntry::find()
         .join(
             JoinType::InnerJoin,
-            timetables::Relation::TimetableEntries.def(),
+            timetable_entries::Relation::Timetables.def(),
         )
         .filter(timetables::Column::ChatId.eq(chat_id))
         .filter(timetable_entries::Column::Week.eq(week as i32))

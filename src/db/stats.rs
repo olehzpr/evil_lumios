@@ -27,6 +27,7 @@ pub async fn get_user_stats(
     user_id: UserId,
 ) -> anyhow::Result<user_stats::Model> {
     let stats = UserStats::find()
+        .join(JoinType::InnerJoin, user_stats::Relation::Users.def())
         .filter(users::Column::AccountId.eq(user_id.to_string()))
         .one(conn)
         .await?
@@ -41,8 +42,8 @@ pub async fn get_full_me(conn: &DatabaseConnection, user_id: UserId) -> anyhow::
         .one(conn)
         .await?
         .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
-
     let all_gambles = Gamble::find()
+        .join(JoinType::InnerJoin, gambles::Relation::Users.def())
         .filter(users::Column::AccountId.eq(user_id.to_string()))
         .order_by_asc(gambles::Column::CreatedAt)
         .all(conn)
