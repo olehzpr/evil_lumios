@@ -1,5 +1,13 @@
 # Use Rust official image
-FROM rust:1.81 AS builder
+FROM rust:1.82 AS builder
+
+RUN apt-get update && \
+    apt-get install -y \
+    libpq-dev \
+    libssl-dev \
+    pkg-config \
+    build-essential \
+    curl
 
 WORKDIR /app
 
@@ -13,9 +21,12 @@ RUN cargo build --release
 FROM debian:bullseye-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+  apt-get install -y \
+  libpq5 \
+  openssl \
+  ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/evil_lumios /app/
 
