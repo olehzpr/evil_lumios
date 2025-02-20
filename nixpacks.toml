@@ -1,14 +1,8 @@
-[container]
-baseImage = "ubuntu:22.04"
-
 [phases.setup]
 aptPkgs = ['libpq-dev', 'pkg-config']
 
 [phases.build]
 cmds = ['cargo build --release']
-
-[phases.install]
-cmds = ['cp target/release/evil_lumios /bin/']
 
 [phases.runtime]
 aptPkgs = ['libpq5', 'libssl3']
