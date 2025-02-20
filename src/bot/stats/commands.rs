@@ -1,6 +1,7 @@
 use crate::bot::handler::HandlerResult;
 use crate::bot::utils::random::get_random_bool;
 use crate::db::gamble::{insert_gamble, GambleDto, GambleType};
+use crate::db::stats::update_balance;
 use crate::db::user::get_user_by_account_id;
 use crate::state::Event;
 use crate::{bot::ui, db::stats::get_user_stats, State};
@@ -174,6 +175,8 @@ async fn make_bet(state: &State, msg: &Message, amount: Amount) -> anyhow::Resul
     };
 
     let change = new_balance - user_stats.balance;
+
+    update_balance(&state.db, stored_user.id, change).await?;
 
     Ok(GambleDto {
         user_id: stored_user.id,

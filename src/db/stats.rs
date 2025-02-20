@@ -156,3 +156,24 @@ pub async fn transfer_reaction_points(
     txn.commit().await?;
     Ok(())
 }
+
+pub async fn update_balance(
+    conn: &DatabaseConnection,
+    user_id: i32,
+    change: i32,
+) -> anyhow::Result<()> {
+    let txn = conn.begin().await?;
+
+    let stats = UserStats::find()
+        .filter(user_stats::Column::UserId.eq(user_id))
+        .one(&txn)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
+
+    let mut stats: user_stats::ActiveModel = stats.into();
+    stats.balance = Set(stats.balance.unwrap() + change);
+    stats.update(&txn).await?;
+
+    txn.commit().await?;
+    Ok(())
+}
