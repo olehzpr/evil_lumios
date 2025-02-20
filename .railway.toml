@@ -1,6 +1,5 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cargo build --release"
 
 [deploy]
-startCommand = "/app/target/release/evil_lumios"
+startCommand = "/app/bin/evil_lumios"

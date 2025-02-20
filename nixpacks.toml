@@ -2,8 +2,11 @@
 aptPkgs = ['libpq-dev', 'pkg-config']
 
 [phases.build]
-cmds = ["cd /app && cargo build --release"]
+cmds = [
+  "cargo build --release",
+  "mkdir -p /app/bin",
+  "cp target/release/evil_lumios /app/bin/evil_lumios",
+]
 
 [phases.runtime]
-cmds = ["ls -l /app/target/release", "ls -l /", "ls -l /app", "ls -l /bin"]
 aptPkgs = ['libpq5', 'libssl3']
