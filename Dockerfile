@@ -1,4 +1,3 @@
-# Use Rust official image
 FROM rust:1.82 AS builder
 
 RUN apt-get update && \
@@ -18,7 +17,7 @@ RUN cargo build --release && rm -rf src
 COPY . .
 RUN cargo build --release
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 RUN apt-get update && \
