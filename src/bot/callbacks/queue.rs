@@ -32,6 +32,8 @@ pub async fn join_queue(
     let queue = get_queue_by_id(&state.db, queue_id).await?;
     let users = get_users(&state.db, queue_id).await?;
 
+    tracing::debug!("{:?}", queue);
+
     let message_id = queue.message_id.parse::<i32>().unwrap();
     let chat_id = queue.chat_id.parse::<i64>().unwrap();
     let updated_content = ui::queue::regular_queue(&queue, users);
@@ -39,6 +41,7 @@ pub async fn join_queue(
     tracing::debug!("{:?}", updated_content);
 
     if queue.is_mixed.is_some() {
+        tracing::debug!("Editing mixed queue");
         bot.edit_mixed_queue(
             ChatId(chat_id),
             MessageId(message_id),
@@ -47,6 +50,7 @@ pub async fn join_queue(
         )
         .await;
     } else if queue.is_priority {
+        tracing::debug!("Editing priority queue");
         bot.edit_priority_queue(
             ChatId(chat_id),
             MessageId(message_id),
@@ -55,6 +59,7 @@ pub async fn join_queue(
         )
         .await;
     } else {
+        tracing::debug!("Editing regular queue");
         bot.edit_regular_queue(
             ChatId(chat_id),
             MessageId(message_id),

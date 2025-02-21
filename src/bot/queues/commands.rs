@@ -1,4 +1,6 @@
+use crate::bot::queues::QueueMessages;
 use crate::bot::ui;
+use crate::db::queue::create_queue;
 use crate::delete_message;
 use crate::entities::queues;
 use crate::state::State;
@@ -15,23 +17,28 @@ pub async fn queue(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
     let loading_msg = loading_message(&bot, msg.chat.id).await?;
 
-    let _new_queue = queues::ActiveModel {
-        title: Set(name.clone()),
-        chat_id: Set(msg.chat.id.to_string()),
-        message_id: Set(loading_msg.id.to_string()),
-        is_mixed: Set(None),
-        is_priority: Set(false),
-        ..Default::default()
-    }
-    .insert(&state.db)
-    .await?;
-
-    bot.edit_message_text(
-        loading_msg.chat.id,
-        loading_msg.id,
-        ui::queue::start_message(name, ui::queue::QueueType::Regular),
+    let new_queue = create_queue(
+        &state.db,
+        queues::ActiveModel {
+            title: Set(name.clone()),
+            chat_id: Set(msg.chat.id.to_string()),
+            message_id: Set(loading_msg.id.to_string()),
+            is_mixed: Set(None),
+            is_priority: Set(false),
+            ..Default::default()
+        },
     )
     .await?;
+
+    bot.edit_regular_queue(
+        loading_msg.chat.id,
+        loading_msg.id,
+        new_queue.id,
+        &ui::queue::start_message(name, ui::queue::QueueType::Regular),
+    )
+    .await;
+
+    delete_message!(state, msg);
     Ok(())
 }
 
@@ -40,23 +47,28 @@ pub async fn mixed(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
     let loading_msg = loading_message(&bot, msg.chat.id).await?;
 
-    let _new_queue = queues::ActiveModel {
-        title: Set(name.clone()),
-        chat_id: Set(msg.chat.id.to_string()),
-        message_id: Set(loading_msg.id.to_string()),
-        is_mixed: Set(Some(true)),
-        is_priority: Set(false),
-        ..Default::default()
-    }
-    .insert(&state.db)
-    .await?;
-
-    bot.edit_message_text(
-        loading_msg.chat.id,
-        loading_msg.id,
-        ui::queue::start_message(name, ui::queue::QueueType::Mixed),
+    let new_queue = create_queue(
+        &state.db,
+        queues::ActiveModel {
+            title: Set(name.clone()),
+            chat_id: Set(msg.chat.id.to_string()),
+            message_id: Set(loading_msg.id.to_string()),
+            is_mixed: Set(Some(true)),
+            is_priority: Set(false),
+            ..Default::default()
+        },
     )
     .await?;
+
+    bot.edit_mixed_queue(
+        loading_msg.chat.id,
+        loading_msg.id,
+        new_queue.id,
+        &ui::queue::start_message(name, ui::queue::QueueType::Mixed),
+    )
+    .await;
+
+    delete_message!(state, msg);
     Ok(())
 }
 
@@ -65,23 +77,28 @@ pub async fn priority_queue(bot: Bot, msg: Message, state: State) -> HandlerResu
 
     let loading_msg = loading_message(&bot, msg.chat.id).await?;
 
-    let _new_queue = queues::ActiveModel {
-        title: Set(name.clone()),
-        chat_id: Set(msg.chat.id.to_string()),
-        message_id: Set(loading_msg.id.to_string()),
-        is_mixed: Set(None),
-        is_priority: Set(true),
-        ..Default::default()
-    }
-    .insert(&state.db)
-    .await?;
-
-    bot.edit_message_text(
-        loading_msg.chat.id,
-        loading_msg.id,
-        ui::queue::start_message(name, ui::queue::QueueType::Priority),
+    let new_queue = create_queue(
+        &state.db,
+        queues::ActiveModel {
+            title: Set(name.clone()),
+            chat_id: Set(msg.chat.id.to_string()),
+            message_id: Set(loading_msg.id.to_string()),
+            is_mixed: Set(None),
+            is_priority: Set(true),
+            ..Default::default()
+        },
     )
     .await?;
+
+    bot.edit_priority_queue(
+        loading_msg.chat.id,
+        loading_msg.id,
+        new_queue.id,
+        &ui::queue::start_message(name, ui::queue::QueueType::Priority),
+    )
+    .await;
+
+    delete_message!(state, msg);
     Ok(())
 }
 

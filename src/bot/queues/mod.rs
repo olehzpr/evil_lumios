@@ -62,7 +62,10 @@ impl QueueMessages for Bot {
             ]))
             .parse_mode(teloxide::types::ParseMode::MarkdownV2)
             .send()
-            .await;
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to edit regular queue: {:?}", e);
+            });
     }
 
     async fn edit_mixed_queue(
@@ -96,7 +99,10 @@ impl QueueMessages for Bot {
             ]))
             .parse_mode(teloxide::types::ParseMode::MarkdownV2)
             .send()
-            .await;
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to edit regular queue: {:?}", e);
+            });
     }
 
     async fn edit_priority_queue(
@@ -133,6 +139,9 @@ impl QueueMessages for Bot {
             ]))
             .parse_mode(teloxide::types::ParseMode::MarkdownV2)
             .send()
-            .await;
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to edit regular queue: {:?}", e);
+            });
     }
 }

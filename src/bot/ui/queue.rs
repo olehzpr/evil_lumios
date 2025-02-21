@@ -35,7 +35,7 @@ pub fn regular_queue(queue: &Queue, users: Vec<User>) -> String {
     let required_characters = users.len().to_string().len();
     for (i, user) in users.iter().enumerate() {
         message.push_str(&format!(
-            "{:width$} - {} ({})\n",
+            "{:width$} \\- {} \\(@{}\\)\n",
             i + 1,
             user.name,
             user.username,
@@ -65,7 +65,7 @@ pub fn priority_queue(queue: &Queue, queue_users: Vec<QueueUser>, users: Vec<Use
             None => "*".to_string(),
         };
         message.push_str(&format!(
-            "{:width$} |{}| - {} ({})\n",
+            "{:width$} |{}| \\- {} \\(@{}\\)\n",
             index,
             priority,
             user.name,
@@ -78,7 +78,7 @@ pub fn priority_queue(queue: &Queue, queue_users: Vec<QueueUser>, users: Vec<Use
 
 pub fn notification(user: &User, queue: &Queue) -> String {
     format!(
-        "{} - твоя черга відповідати в черзі '{}'",
+        "{} – твоя черга відповідати в черзі '{}'",
         user.name, queue.title
     )
 }
