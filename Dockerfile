@@ -29,6 +29,8 @@ RUN apt-get update && \
 
 COPY --from=builder /app/target/release/evil_lumios /app/
 
+RUN chmod +x /app/evil_lumios
+
 EXPOSE 3000
 
-CMD ["./evil_lumios"]
+ENTRYPOINT ["/app/evil_lumios"]
