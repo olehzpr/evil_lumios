@@ -28,6 +28,7 @@ RUN apt-get update && \
   rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/evil_lumios /app/
+COPY --from=builder /app/inline-config.toml /app/
 
 RUN chmod +x /app/evil_lumios
 
