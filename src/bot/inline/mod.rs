@@ -32,7 +32,7 @@ pub struct Config {
 }
 
 pub async fn answer_inline_query(bot: Bot, q: InlineQuery) -> HandlerResult {
-    let config = load_config("src/bot/inline/config.toml");
+    let config = load_config("inline-config.toml");
     if let Err(err) = config {
         tracing::error!("Invalid configuration. Skipping inline query: {:?}", err);
         return Ok(());
