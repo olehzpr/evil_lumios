@@ -1,7 +1,7 @@
 use crate::bot::handler::HandlerResult;
 use crate::bot::utils::random::get_random_bool;
 use crate::db::gamble::{insert_gamble, GambleDto, GambleType};
-use crate::db::stats::update_balance;
+use crate::db::stats::{get_group_stats, update_balance};
 use crate::db::user::get_user_by_account_id;
 use crate::state::Event;
 use crate::{bot::ui, db::stats::get_user_stats, State};
@@ -14,8 +14,17 @@ use teloxide::{prelude::Requester, types::Message, Bot};
 
 use super::gifs::get_random_gif;
 
-pub async fn stats(bot: Bot, msg: Message, _state: State) -> HandlerResult {
-    bot.send_message(msg.chat.id, "Stats command").await?;
+pub async fn stats(bot: Bot, msg: Message, state: State) -> HandlerResult {
+    let users_stats = get_group_stats(&state.db, msg.chat.id).await?;
+    let res = ui::stats::group_stats(users_stats);
+    let new_msg = bot
+        .send_message(msg.chat.id, &res)
+        .parse_mode(teloxide::types::ParseMode::MarkdownV2)
+        .send()
+        .await?;
+
+    delete_message!(state, msg);
+    delete_message!(state, new_msg);
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use crate::db::stats::FullStats;
+use crate::db::stats::{FullStats, GroupStats};
 use crate::entities::user_stats::Model as UserStats;
 
 use super::utils::adapt_for_markdown;
@@ -64,6 +64,26 @@ pub fn full_stats(stats: FullStats) -> String {
         stats.longest_losing_streak,
         current_streak
     )
+}
+
+pub fn group_stats(group_stats: GroupStats) -> String {
+    let mut result = format!("*Статистика групи*\n```{}\n", group_stats.group_name);
+    let longest_username = group_stats
+        .stats
+        .iter()
+        .map(|stat| stat.username.len())
+        .max()
+        .unwrap_or(0);
+    for stat in group_stats.stats {
+        result.push_str(&format!(
+            "{:width$} {:>5}\n",
+            stat.username + ":",
+            stat.balance,
+            width = longest_username
+        ));
+    }
+    result.push_str("```");
+    result
 }
 
 fn win_with_case(n: i32) -> &'static str {

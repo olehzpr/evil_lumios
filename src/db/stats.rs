@@ -1,10 +1,12 @@
 use sea_orm::{entity::*, query::*, DatabaseConnection};
-use teloxide::types::UserId;
+use teloxide::types::{ChatId, UserId};
 
-use crate::entities::{gambles, user_stats, users};
+use crate::entities::{chats, gambles, user_stats, users};
 
+use crate::entities::chats::Entity as Chats;
 use crate::entities::gambles::Entity as Gamble;
 use crate::entities::user_stats::Entity as UserStats;
+use sea_orm::FromQueryResult;
 
 pub struct FullStats {
     pub user_id: i32,
@@ -176,4 +178,42 @@ pub async fn update_balance(
 
     txn.commit().await?;
     Ok(())
+}
+
+#[derive(Debug, FromQueryResult)]
+pub struct GroupMemberStat {
+    pub username: String,
+    pub balance: i32,
+}
+
+pub struct GroupStats {
+    pub group_name: String,
+    pub stats: Vec<GroupMemberStat>,
+}
+
+pub async fn get_group_stats(
+    conn: &DatabaseConnection,
+    chat_id: ChatId,
+) -> anyhow::Result<GroupStats> {
+    let group_stats = UserStats::find()
+        .select_only()
+        .column(user_stats::Column::Balance)
+        .column_as(users::Column::Username, "username")
+        .join(JoinType::InnerJoin, user_stats::Relation::Users.def())
+        .filter(users::Column::ChatId.eq(chat_id.to_string()))
+        .order_by_desc(user_stats::Column::Balance)
+        .into_model::<GroupMemberStat>()
+        .all(conn)
+        .await?;
+
+    let group = Chats::find()
+        .filter(chats::Column::ChatId.eq(chat_id.to_string()))
+        .one(conn)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Chat not found"))?;
+
+    Ok(GroupStats {
+        group_name: group.title,
+        stats: group_stats,
+    })
 }
