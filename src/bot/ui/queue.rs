@@ -1,6 +1,7 @@
-use crate::entities::queue_users::Model as QueueUser;
-use crate::entities::queues::Model as Queue;
-use crate::entities::users::Model as User;
+use crate::models::{
+    queue::{QueueModel, QueueUserModel},
+    user::UserModel,
+};
 
 pub enum QueueType {
     Regular,
@@ -24,7 +25,7 @@ pub fn start_message(name: String, queue_type: QueueType) -> String {
     )
 }
 
-pub fn regular_queue(queue: &Queue, users: Vec<User>) -> String {
+pub fn regular_queue(queue: &QueueModel, users: Vec<UserModel>) -> String {
     let queue_type = if queue.is_mixed.is_some() {
         QueueType::Mixed
     } else {
@@ -45,7 +46,11 @@ pub fn regular_queue(queue: &Queue, users: Vec<User>) -> String {
     message
 }
 
-pub fn priority_queue(queue: &Queue, queue_users: Vec<QueueUser>, users: Vec<User>) -> String {
+pub fn priority_queue(
+    queue: &QueueModel,
+    queue_users: Vec<QueueUserModel>,
+    users: Vec<UserModel>,
+) -> String {
     let e = get_emoji(QueueType::Priority);
     let mut message = format!("{} *{}* {}\n\n", e, queue.title, e);
     let required_characters = users.len().to_string().len();
@@ -55,7 +60,7 @@ pub fn priority_queue(queue: &Queue, queue_users: Vec<QueueUser>, users: Vec<Use
             continue;
         }
         let user_info = user_info.unwrap();
-        let index = if user_info.is_freezed.unwrap_or(false) {
+        let index = if user_info.is_frozen.unwrap_or(false) {
             "❄️".to_string()
         } else {
             (i + 1).to_string()
@@ -76,7 +81,7 @@ pub fn priority_queue(queue: &Queue, queue_users: Vec<QueueUser>, users: Vec<Use
     message
 }
 
-pub fn notification(user: &User, queue: &Queue) -> String {
+pub fn notification(user: &UserModel, queue: &QueueModel) -> String {
     format!(
         "{} – твоя черга відповідати в черзі '{}'",
         user.name, queue.title

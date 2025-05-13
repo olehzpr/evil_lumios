@@ -1,32 +1,16 @@
-use std::env;
-use std::time::Duration;
+use std::{env, time::Duration};
 
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-use sea_orm_migration::prelude::*;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 
-use super::migration::Migrator;
-
-pub async fn connect_db() -> DatabaseConnection {
+pub async fn connect_db() -> PgPool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    let mut options = ConnectOptions::new(database_url);
-    options
-        .max_connections(20)
-        .min_connections(1)
-        .connect_timeout(Duration::from_secs(20));
-
-    match Database::connect(options).await {
-        Ok(db) => {
-            let _ = Migrator::up(&db, None).await.map_err(|e| {
-                tracing::error!("Error running migrations: {:?}", e);
-                std::process::exit(1);
-            });
-            tracing::info!("Connected to database");
-            db
-        }
-        Err(e) => {
-            tracing::error!("Error connecting to database: {:?}", e);
-            std::process::exit(1);
-        }
-    }
+    PgPoolOptions::new()
+        .max_connections(10)
+        .max_lifetime(Duration::from_secs(30 * 60))
+        .idle_timeout(Duration::from_secs(5 * 60))
+        .test_before_acquire(true)
+        .connect(&database_url)
+        .await
+        .expect("Failed to connect to database")
 }

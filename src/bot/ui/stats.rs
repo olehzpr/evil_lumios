@@ -1,10 +1,10 @@
-use crate::db::stats::{FullStats, GroupStats};
-use crate::entities::user_stats::Model as UserStats;
+use crate::models::stats::{FullStats, GroupStats};
+use crate::models::user::UserStatsModel;
 
 use super::utils::adapt_for_markdown;
 use rand::seq::SliceRandom;
 
-pub fn short_stats(stats: UserStats) -> String {
+pub fn short_stats(stats: UserStatsModel) -> String {
     format!(
         "*Власна статистика*\n\
         ```\n\

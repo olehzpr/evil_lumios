@@ -1,7 +1,7 @@
-use crate::entities::users::Model as User;
 use crate::{
     bot::handler::HandlerResult,
     db::{self, stats::transfer_reaction_points},
+    models::user::UserModel,
     redis::RedisCache,
     state::State,
 };
@@ -25,12 +25,12 @@ pub async fn handle_reaction(msg: MessageReactionUpdated, state: State) -> Handl
         return Ok(());
     }
 
-    transfer_reaction_points(&state.db, sender, receiver, points).await?;
+    transfer_reaction_points(&state.db, sender.id, receiver.id, points).await?;
 
     Ok(())
 }
 
-async fn get_user(state: &State, user_id: UserId) -> anyhow::Result<User> {
+async fn get_user(state: &State, user_id: UserId) -> anyhow::Result<UserModel> {
     if let Ok(user) = state.redis.get_user(user_id) {
         Ok(user)
     } else {

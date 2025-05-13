@@ -1,102 +1,157 @@
-use sea_orm::{entity::*, query::*, DatabaseConnection};
+use anyhow::Context;
+use sqlx::{PgPool, Row};
 use teloxide::types::{ChatId, UserId};
 
-use crate::entities::{chats, gambles, user_stats, users};
+use crate::models::stats::{FullStats, GambleModel, GroupMemberStat, GroupStats};
+use crate::models::user::UserStatsModel;
 
-use crate::entities::chats::Entity as Chats;
-use crate::entities::gambles::Entity as Gamble;
-use crate::entities::user_stats::Entity as UserStats;
-use sea_orm::FromQueryResult;
+pub async fn get_user_stats(pool: &PgPool, user_id: UserId) -> anyhow::Result<UserStatsModel> {
+    let user_account_id_str = user_id.to_string();
 
-pub struct FullStats {
-    pub user_id: i32,
-    pub balance: i32,
-    pub daily_limit: i32,
-    pub daily_used: i32,
-    pub num_of_wins: i32,
-    pub num_of_losses: i32,
-    pub total_won: i32,
-    pub total_lost: i32,
-    pub total_gambles: i32,
-    pub longest_winning_streak: i32,
-    pub longest_losing_streak: i32,
-    pub current_streak: i32,
-    pub average_bet: f32,
-}
-
-pub async fn get_user_stats(
-    conn: &DatabaseConnection,
-    user_id: UserId,
-) -> anyhow::Result<user_stats::Model> {
-    let stats = UserStats::find()
-        .join(JoinType::InnerJoin, user_stats::Relation::Users.def())
-        .filter(users::Column::AccountId.eq(user_id.to_string()))
-        .one(conn)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
+    let stats = sqlx::query(
+        r#"
+        SELECT us.id, us.user_id, us.balance, us.daily_limit, us.daily_used
+        FROM user_stats us
+        JOIN users u ON us.user_id = u.id
+        WHERE u.account_id = $1
+        "#,
+    )
+    .bind(&user_account_id_str)
+    .fetch_optional(pool)
+    .await
+    .context(format!(
+        "Failed to query user stats for account_id: {}",
+        user_account_id_str
+    ))?
+    .map(|row| UserStatsModel {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        balance: row.get("balance"),
+        daily_limit: row.get("daily_limit"),
+        daily_used: row.get("daily_used"),
+    })
+    .ok_or_else(|| {
+        anyhow::anyhow!(
+            "User stats not found for account_id: {}",
+            user_account_id_str
+        )
+    })?;
 
     Ok(stats)
 }
 
-pub async fn get_full_me(conn: &DatabaseConnection, user_id: UserId) -> anyhow::Result<FullStats> {
-    let stats = UserStats::find()
-        .join(JoinType::InnerJoin, user_stats::Relation::Users.def())
-        .filter(users::Column::AccountId.eq(user_id.to_string()))
-        .one(conn)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
-    let all_gambles = Gamble::find()
-        .join(JoinType::InnerJoin, gambles::Relation::Users.def())
-        .filter(users::Column::AccountId.eq(user_id.to_string()))
-        .order_by_asc(gambles::Column::CreatedAt)
-        .all(conn)
-        .await?;
+pub async fn get_full_me(pool: &PgPool, user_id: UserId) -> anyhow::Result<FullStats> {
+    let user_account_id_str = user_id.to_string();
+
+    let stats_row = sqlx::query(
+        r#"
+        SELECT us.id, us.user_id, us.balance, us.daily_limit, us.daily_used
+        FROM user_stats us
+        JOIN users u ON us.user_id = u.id
+        WHERE u.account_id = $1
+        "#,
+    )
+    .bind(user_account_id_str.clone())
+    .fetch_optional(pool)
+    .await
+    .context("Failed to query user stats")?;
+
+    let stats = stats_row
+        .map(|row| UserStatsModel {
+            id: row.get("id"),
+            user_id: row.get("user_id"),
+            balance: row.get("balance"),
+            daily_limit: row.get("daily_limit"),
+            daily_used: row.get("daily_used"),
+        })
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "User stats not found for account_id: {}",
+                user_account_id_str
+            )
+        })?;
+
+    let gamble_rows = sqlx::query(
+        r#"
+        SELECT
+            g.id,
+            g.user_id,
+            g.message_id,
+            g.gamble_type,
+            g.bet,
+            g.change,
+            g.is_win,
+            g.created_at
+        FROM gambles g
+        JOIN users u ON g.user_id = u.id
+        WHERE u.account_id = $1
+        ORDER BY g.created_at ASC
+        "#,
+    )
+    .bind(user_account_id_str)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query user gambles")?;
+
+    let all_gambles = gamble_rows
+        .into_iter()
+        .map(|row| GambleModel {
+            id: row.get("id"),
+            user_id: row.get("user_id"),
+            message_id: row.get("message_id"),
+            gamble_type: row.get("gamble_type"),
+            bet: row.get("bet"),
+            change: row.get("change"),
+            is_win: row.get("is_win"),
+            created_at: row.get("created_at"),
+        })
+        .collect::<Vec<_>>();
 
     let mut total_won = 0;
     let mut total_lost = 0;
     let mut num_of_wins = 0;
     let mut num_of_losses = 0;
-    let mut total_gambles = 0;
+    let total_gambles = all_gambles.len() as i32;
     let mut longest_winning_streak = 0;
     let mut longest_losing_streak = 0;
     let mut current_streak = 0i32;
-    let mut average_bet = 0.0;
+    let mut total_bet = 0.0;
 
     for gamble in all_gambles.iter() {
-        total_gambles += 1;
         if gamble.is_win {
             total_won += gamble.change.abs();
             num_of_wins += 1;
             if current_streak >= 0 {
                 current_streak += 1;
             } else {
+                longest_losing_streak = longest_losing_streak.max(current_streak.abs());
                 current_streak = 1;
             }
-            if current_streak > longest_winning_streak {
-                longest_winning_streak = current_streak.abs();
-            }
+            longest_winning_streak = longest_winning_streak.max(current_streak);
         } else {
             total_lost += gamble.change.abs();
             num_of_losses += 1;
             if current_streak <= 0 {
                 current_streak -= 1;
             } else {
+                longest_winning_streak = longest_winning_streak.max(current_streak);
                 current_streak = -1;
             }
-            if current_streak.abs() > longest_losing_streak {
-                longest_losing_streak = current_streak.abs();
-            }
+            longest_losing_streak = longest_losing_streak.max(current_streak.abs());
         }
-        average_bet += gamble.bet as f32;
+        total_bet += gamble.bet as f32;
     }
 
-    average_bet = if total_gambles > 0 {
-        average_bet / total_gambles as f32
+    longest_winning_streak = longest_winning_streak.max(current_streak.max(0));
+    longest_losing_streak = longest_losing_streak.max((-current_streak).max(0));
+
+    let average_bet = if total_gambles > 0 {
+        total_bet / total_gambles as f32
     } else {
         0.0
     };
 
-    let stats = FullStats {
+    let full_stats = FullStats {
         user_id: stats.user_id,
         balance: stats.balance,
         daily_limit: stats.daily_limit,
@@ -112,108 +167,190 @@ pub async fn get_full_me(conn: &DatabaseConnection, user_id: UserId) -> anyhow::
         average_bet,
     };
 
-    Ok(stats)
+    Ok(full_stats)
 }
 
 pub async fn transfer_reaction_points(
-    conn: &DatabaseConnection,
-    sender: users::Model,
-    receiver: users::Model,
+    pool: &PgPool,
+    sender_db_user_id: i32,
+    receiver_db_user_id: i32,
     points: i32,
 ) -> anyhow::Result<()> {
-    let txn = conn.begin().await?;
+    let mut tx = pool.begin().await.context("Failed to begin transaction")?;
 
-    let sender_stats = UserStats::find()
-        .filter(user_stats::Column::UserId.eq(sender.id))
-        .one(&txn)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Sender stats not found"))?;
+    let sender_stats = sqlx::query(
+        r#"
+        SELECT id, user_id, balance, daily_limit, daily_used
+        FROM user_stats
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(sender_db_user_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .context("Failed to query sender stats")?
+    .map(|row| UserStatsModel {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        balance: row.get("balance"),
+        daily_limit: row.get("daily_limit"),
+        daily_used: row.get("daily_used"),
+    })
+    .ok_or_else(|| anyhow::anyhow!("Sender stats not found for user_id: {}", sender_db_user_id))?;
 
-    let receiver_stats = UserStats::find()
-        .filter(user_stats::Column::UserId.eq(receiver.id))
-        .one(&txn)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Receiver stats not found"))?;
+    let receiver_stats = sqlx::query(
+        r#"
+        SELECT id, user_id, balance, daily_limit, daily_used
+        FROM user_stats
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(receiver_db_user_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .context("Failed to query receiver stats")?
+    .map(|row| UserStatsModel {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        balance: row.get("balance"),
+        daily_limit: row.get("daily_limit"),
+        daily_used: row.get("daily_used"),
+    })
+    .ok_or_else(|| {
+        anyhow::anyhow!(
+            "Receiver stats not found for user_id: {}",
+            receiver_db_user_id
+        )
+    })?;
 
     let available = sender_stats.daily_limit - sender_stats.daily_used;
-    let actual = if available > points {
-        points
-    } else {
-        available
-    };
+    let actual = points.min(available);
 
-    if actual == 0 {
-        txn.rollback().await?;
+    if actual <= 0 {
+        tx.rollback()
+            .await
+            .context("Failed to rollback transaction")?;
         return Ok(());
     }
 
-    let mut sender_stats: user_stats::ActiveModel = sender_stats.into();
-    sender_stats.daily_used = Set(sender_stats.daily_used.unwrap() + actual);
-    sender_stats.update(&txn).await?;
+    sqlx::query(
+        r#"
+        UPDATE user_stats
+        SET daily_used = daily_used + $1
+        WHERE id = $2
+        "#,
+    )
+    .bind(actual)
+    .bind(sender_stats.id)
+    .execute(&mut *tx)
+    .await
+    .context("Failed to update sender daily_used")?;
 
-    let mut receiver_stats: user_stats::ActiveModel = receiver_stats.into();
-    receiver_stats.balance = Set(receiver_stats.balance.unwrap() + actual);
-    receiver_stats.update(&txn).await?;
+    sqlx::query(
+        r#"
+        UPDATE user_stats
+        SET balance = balance + $1
+        WHERE id = $2
+        "#,
+    )
+    .bind(actual)
+    .bind(receiver_stats.id)
+    .execute(&mut *tx)
+    .await
+    .context("Failed to update receiver balance")?;
 
-    txn.commit().await?;
+    tx.commit().await.context("Failed to commit transaction")?;
     Ok(())
 }
 
-pub async fn update_balance(
-    conn: &DatabaseConnection,
-    user_id: i32,
-    change: i32,
-) -> anyhow::Result<()> {
-    let txn = conn.begin().await?;
+pub async fn update_balance(pool: &PgPool, user_db_id: i32, change: i32) -> anyhow::Result<()> {
+    let mut tx = pool.begin().await.context("Failed to begin transaction")?;
 
-    let stats = UserStats::find()
-        .filter(user_stats::Column::UserId.eq(user_id))
-        .one(&txn)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("User stats not found"))?;
+    let stats = sqlx::query(
+        r#"
+        SELECT id, user_id, balance, daily_limit, daily_used
+        FROM user_stats
+        WHERE user_id = $1
+        "#,
+    )
+    .bind(user_db_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .context("Failed to query user stats for balance update")?
+    .map(|row| UserStatsModel {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        balance: row.get("balance"),
+        daily_limit: row.get("daily_limit"),
+        daily_used: row.get("daily_used"),
+    })
+    .ok_or_else(|| anyhow::anyhow!("User stats not found for user_id: {}", user_db_id))?;
 
-    let mut stats: user_stats::ActiveModel = stats.into();
-    stats.balance = Set(stats.balance.unwrap() + change);
-    stats.update(&txn).await?;
+    sqlx::query(
+        r#"
+        UPDATE user_stats
+        SET balance = balance + $1
+        WHERE id = $2
+        "#,
+    )
+    .bind(change)
+    .bind(stats.id)
+    .execute(&mut *tx)
+    .await
+    .context(format!(
+        "Failed to update balance for user id: {}",
+        user_db_id
+    ))?;
 
-    txn.commit().await?;
+    tx.commit().await.context("Failed to commit transaction")?;
     Ok(())
 }
 
-#[derive(Debug, FromQueryResult)]
-pub struct GroupMemberStat {
-    pub username: String,
-    pub balance: i32,
-}
+pub async fn get_group_stats(pool: &PgPool, chat_id: ChatId) -> anyhow::Result<GroupStats> {
+    let chat_id_str = chat_id.to_string();
 
-pub struct GroupStats {
-    pub group_name: String,
-    pub stats: Vec<GroupMemberStat>,
-}
+    let group_stats = sqlx::query(
+        r#"
+        SELECT
+            u.username as username,
+            us.balance as balance
+        FROM user_stats us
+        JOIN users u ON us.user_id = u.id
+        WHERE u.chat_id = $1
+        ORDER BY us.balance DESC
+        "#,
+    )
+    .bind(chat_id_str.clone())
+    .fetch_all(pool)
+    .await
+    .context(format!(
+        "Failed to query group stats for chat_id: {}",
+        chat_id_str
+    ))?
+    .into_iter()
+    .map(|row| GroupMemberStat {
+        username: row.get("username"),
+        balance: row.get("balance"),
+    })
+    .collect();
 
-pub async fn get_group_stats(
-    conn: &DatabaseConnection,
-    chat_id: ChatId,
-) -> anyhow::Result<GroupStats> {
-    let group_stats = UserStats::find()
-        .select_only()
-        .column(user_stats::Column::Balance)
-        .column_as(users::Column::Username, "username")
-        .join(JoinType::InnerJoin, user_stats::Relation::Users.def())
-        .filter(users::Column::ChatId.eq(chat_id.to_string()))
-        .order_by_desc(user_stats::Column::Balance)
-        .into_model::<GroupMemberStat>()
-        .all(conn)
-        .await?;
-
-    let group = Chats::find()
-        .filter(chats::Column::ChatId.eq(chat_id.to_string()))
-        .one(conn)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Chat not found"))?;
+    let group = sqlx::query(
+        r#"
+        SELECT title FROM chats WHERE chat_id = $1
+        "#,
+    )
+    .bind(&chat_id_str)
+    .fetch_optional(pool)
+    .await
+    .context(format!(
+        "Failed to query chat title for chat_id: {}",
+        chat_id_str
+    ))?
+    .and_then(|row| row.try_get("title").ok())
+    .ok_or_else(|| anyhow::anyhow!("Chat not found for chat_id: {}", chat_id_str))?;
 
     Ok(GroupStats {
-        group_name: group.title,
+        group_name: group,
         stats: group_stats,
     })
 }

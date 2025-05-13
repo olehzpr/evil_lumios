@@ -1,62 +1,66 @@
-use sea_orm::{entity::*, DatabaseConnection};
-use teloxide::types::MessageId;
+use anyhow::Context;
+use sqlx::{PgPool, Row};
 
-use crate::entities::gambles;
+use crate::models::{gamble::GambleDto, stats::GambleModel};
 
-pub enum GambleType {
-    Bet,
-    Unknown,
-}
+pub async fn insert_gamble(pool: &PgPool, gamble: GambleDto) -> anyhow::Result<GambleModel> {
+    let inserted_gamble = sqlx::query(
+        r#"
+        INSERT INTO gambles (user_id, message_id, is_win, change, bet, gamble_type)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, user_id, message_id, is_win, change, bet, gamble_type, created_at
+        "#,
+    )
+    .bind(gamble.user_id)
+    .bind(gamble.message_id.to_string())
+    .bind(gamble.is_win)
+    .bind(gamble.change)
+    .bind(gamble.bet)
+    .bind(String::from(gamble.gamble_type))
+    .fetch_one(pool)
+    .await
+    .context(format!(
+        "Failed to insert gamble for user_id: {}",
+        gamble.user_id
+    ))?;
 
-impl From<GambleType> for String {
-    fn from(gamble_type: GambleType) -> Self {
-        match gamble_type {
-            GambleType::Bet => "bet".to_string(),
-            GambleType::Unknown => "unknown".to_string(),
-        }
-    }
-}
-
-impl From<&str> for GambleType {
-    fn from(gamble_type: &str) -> Self {
-        match gamble_type {
-            "bet" => GambleType::Bet,
-            _ => GambleType::Unknown,
-        }
-    }
-}
-
-pub struct GambleDto {
-    pub user_id: i32,
-    pub message_id: MessageId,
-    pub is_win: bool,
-    pub change: i32,
-    pub bet: i32,
-    pub gamble_type: GambleType,
-}
-
-pub async fn insert_gamble(
-    conn: &DatabaseConnection,
-    gamble: GambleDto,
-) -> anyhow::Result<gambles::Model> {
-    let new_gamble = gambles::ActiveModel {
-        user_id: Set(gamble.user_id),
-        message_id: Set(gamble.message_id.to_string()),
-        is_win: Set(gamble.is_win),
-        change: Set(gamble.change),
-        bet: Set(gamble.bet),
-        gamble_type: Set(gamble.gamble_type.into()),
-        ..Default::default()
+    let inserted_gamble = GambleModel {
+        id: inserted_gamble.get("id"),
+        user_id: inserted_gamble.get("user_id"),
+        message_id: inserted_gamble.get("message_id"),
+        gamble_type: inserted_gamble.get("gamble_type"),
+        bet: inserted_gamble.get("bet"),
+        change: inserted_gamble.get("change"),
+        is_win: inserted_gamble.get("is_win"),
+        created_at: inserted_gamble.get("created_at"),
     };
 
-    let inserted_gamble = new_gamble.insert(conn).await?;
     Ok(inserted_gamble)
 }
 
-pub async fn get_gamble_by_id(
-    conn: &DatabaseConnection,
-    id: i32,
-) -> anyhow::Result<Option<gambles::Model>> {
-    let gamble = gambles::Entity::find_by_id(id).one(conn).await?;
+pub async fn get_gamble_by_id(pool: &PgPool, id: i32) -> anyhow::Result<Option<GambleModel>> {
+    let gamble = sqlx::query(
+        r#"
+        SELECT id, user_id, message_id, gamble_type, bet, change, is_win, created_at
+        FROM gambles
+        WHERE id = $1
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+    .context(format!("Failed to query gamble by id: {}", id))?;
+
+    let gamble = gamble.map(|row| GambleModel {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        message_id: row.get("message_id"),
+        gamble_type: row.get("gamble_type"),
+        bet: row.get("bet"),
+        change: row.get("change"),
+        is_win: row.get("is_win"),
+        created_at: row.get("created_at"),
+    });
+
     Ok(gamble)
 }

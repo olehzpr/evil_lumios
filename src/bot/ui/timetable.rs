@@ -1,12 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::bot::timetable::{Day, Week};
-use crate::entities::timetable_entries::Model as TimetableEntry;
+use crate::{
+    bot::timetable::{Day, Week},
+    models::timetable::TimetableEntryModel,
+};
 
 use super::utils::adapt_for_markdown;
 
-pub fn day_view(entries: Vec<TimetableEntry>) -> String {
-    let mut grouped_entries: BTreeMap<String, HashMap<String, Vec<TimetableEntry>>> =
+pub fn day_view(entries: Vec<TimetableEntryModel>) -> String {
+    let mut grouped_entries: BTreeMap<String, HashMap<String, Vec<TimetableEntryModel>>> =
         BTreeMap::new();
 
     for entry in entries {
@@ -60,7 +62,7 @@ pub fn day_view(entries: Vec<TimetableEntry>) -> String {
     return response;
 }
 
-pub fn week_view(entries: Vec<TimetableEntry>) -> String {
+pub fn week_view(entries: Vec<TimetableEntryModel>) -> String {
     let mut response = String::new();
     let mut day: Day = Day::Mon;
     for entry in entries {
@@ -76,7 +78,7 @@ pub fn week_view(entries: Vec<TimetableEntry>) -> String {
     return response;
 }
 
-pub fn edit_view(entries: Vec<TimetableEntry>) -> String {
+pub fn edit_view(entries: Vec<TimetableEntryModel>) -> String {
     let mut response = String::new();
     let mut day: Day = Day::Mon;
     let mut week: Week = Week::First;
@@ -95,7 +97,7 @@ pub fn edit_view(entries: Vec<TimetableEntry>) -> String {
     return response;
 }
 
-pub fn entry_view(entry: Option<TimetableEntry>) -> String {
+pub fn entry_view(entry: Option<TimetableEntryModel>) -> String {
     if entry.is_none() {
         return adapt_for_markdown(format!("{}\n", random_response()));
     }
@@ -111,7 +113,7 @@ pub fn entry_view(entry: Option<TimetableEntry>) -> String {
     ))
 }
 
-pub fn update_link_view(entry: &TimetableEntry) -> String {
+pub fn update_link_view(entry: &TimetableEntryModel) -> String {
     adapt_for_markdown(format!(
         "Надішліть посилання для пари *{} {} {}*\n",
         class_type_identifier(&entry.class_type),
@@ -120,7 +122,7 @@ pub fn update_link_view(entry: &TimetableEntry) -> String {
     ))
 }
 
-fn entry_row(entry: &TimetableEntry, edit: bool) -> String {
+fn entry_row(entry: &TimetableEntryModel, edit: bool) -> String {
     let identifier = class_type_identifier(&entry.class_type);
     let short_name = entry
         .class_name
@@ -145,7 +147,7 @@ fn entry_row(entry: &TimetableEntry, edit: bool) -> String {
     ))
 }
 
-fn entry_row_no_time(entry: &TimetableEntry) -> String {
+fn entry_row_no_time(entry: &TimetableEntryModel) -> String {
     let short_name = entry
         .class_name
         .split(|c| c == '.' || c == ':')

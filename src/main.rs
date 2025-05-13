@@ -3,9 +3,8 @@ pub mod bot;
 pub mod config;
 pub mod cron;
 pub mod db;
-pub mod entities;
+pub mod models;
 pub mod redis;
-pub mod schema;
 pub mod state;
 
 use std::env;

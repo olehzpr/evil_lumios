@@ -4,7 +4,7 @@ use teloxide::types::ChatId;
 use crate::{
     bot::utils::time::get_current_time,
     db::{self, timetable::get_full_timetable},
-    entities::timetable_entries::Model as TimetableEntry,
+    models::timetable::TimetableEntryModel,
     redis::RedisCache,
     state::{Event, State},
 };
@@ -50,7 +50,7 @@ async fn get_chat_ids(state: &State) -> anyhow::Result<Vec<ChatId>> {
     Ok(chat_ids)
 }
 
-async fn get_entries(state: &State, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntry>> {
+async fn get_entries(state: &State, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntryModel>> {
     if let Ok(entries) = state.redis.get_timetable_entries(chat_id) {
         return Ok(entries);
     }

@@ -1,8 +1,9 @@
 use crate::bot::handler::HandlerResult;
 use crate::bot::utils::random::get_random_bool;
-use crate::db::gamble::{insert_gamble, GambleDto, GambleType};
+use crate::db::gamble::insert_gamble;
 use crate::db::stats::{get_group_stats, update_balance};
 use crate::db::user::get_user_by_account_id;
+use crate::models::gamble::{GambleDto, GambleType};
 use crate::state::Event;
 use crate::{bot::ui, db::stats::get_user_stats, State};
 use crate::{delete_message, param};

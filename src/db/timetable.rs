@@ -1,48 +1,82 @@
-use sea_orm::{entity::*, query::*, DatabaseConnection};
+use anyhow::Context;
+use chrono::NaiveTime;
 use serde_json::Value;
+use sqlx::{PgPool, Row};
 
 use crate::{
     bot::{
         timetable::{Day, Week},
         utils::time::get_current_time,
     },
-    entities::{timetable_entries, timetables},
+    models::timetable::{TimetableEntryModel, TimetableModel},
 };
-
-use crate::entities::timetable_entries::Entity as TimetableEntry;
-use crate::entities::timetables::Entity as Timetable;
 
 const OFFSET: chrono::Duration = chrono::Duration::minutes(5);
 
 pub async fn import_timetable(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
     timetable: Value,
 ) -> anyhow::Result<()> {
-    let existing_timetable = Timetable::find()
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .one(conn)
-        .await?;
+    let mut tx = pool.begin().await.context("Failed to begin transaction")?;
+
+    let existing_timetable = sqlx::query(
+        r#"
+        SELECT id, chat_id
+        FROM timetables
+        WHERE chat_id = $1
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .context("Failed to query existing timetable")?
+    .map(|row| TimetableModel {
+        id: row.get("id"),
+        chat_id: row.get("chat_id"),
+    });
 
     if let Some(existing_timetable) = existing_timetable {
-        TimetableEntry::delete_many()
-            .filter(timetable_entries::Column::TimetableId.eq(existing_timetable.id))
-            .exec(conn)
-            .await?;
-        Timetable::delete_many()
-            .filter(timetables::Column::ChatId.eq(chat_id))
-            .exec(conn)
-            .await?;
+        sqlx::query(
+            r#"
+            DELETE FROM timetable_entries
+            WHERE timetable_id = $1
+            "#,
+        )
+        .bind(existing_timetable.id)
+        .execute(&mut *tx)
+        .await
+        .context("Failed to delete existing timetable entries")?;
+
+        sqlx::query(
+            r#"
+            DELETE FROM timetables
+            WHERE id = $1
+            "#,
+        )
+        .bind(existing_timetable.id)
+        .execute(&mut *tx)
+        .await
+        .context("Failed to delete existing timetable")?;
     }
 
-    let created_timetable = timetables::ActiveModel {
-        chat_id: Set(chat_id.to_string()),
-        ..Default::default()
-    }
-    .insert(conn)
-    .await?;
+    let created_timetable = sqlx::query(
+        r#"
+        INSERT INTO timetables (chat_id)
+        VALUES ($1)
+        RETURNING id, chat_id
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_one(&mut *tx)
+    .await
+    .context("Failed to insert new timetable")?;
 
-    let mut entries: Vec<timetable_entries::ActiveModel> = vec![];
+    let created_timetable = TimetableModel {
+        id: created_timetable.get("id"),
+        chat_id: created_timetable.get("chat_id"),
+    };
+
     for (week, schedule_key) in [
         (Week::First, "scheduleFirstWeek"),
         (Week::Second, "scheduleSecondWeek"),
@@ -51,188 +85,382 @@ pub async fn import_timetable(
             for (index, day) in days.iter().enumerate() {
                 if let Some(pairs) = day["pairs"].as_array() {
                     for entry in pairs {
-                        entries.push(timetable_entries::ActiveModel {
-                            timetable_id: Set(created_timetable.id),
-                            week: Set(week as i32),
-                            day: Set(index as i32),
-                            class_name: Set(entry["name"].as_str().unwrap().to_string()),
-                            class_type: Set(entry["tag"].as_str().unwrap().to_string()),
-                            class_time: Set(chrono::NaiveTime::parse_from_str(
-                                entry["time"].as_str().unwrap(),
-                                "%H:%M",
-                            )?),
-                            link: Set(None),
-                            ..Default::default()
-                        });
+                        let class_time_str = entry["time"].as_str().ok_or_else(|| {
+                            anyhow::anyhow!("Missing 'time' field in timetable entry")
+                        })?;
+                        let class_time = NaiveTime::parse_from_str(class_time_str, "%H:%M")
+                            .context(format!("Failed to parse time '{}'", class_time_str))?;
+
+                        sqlx::query(
+                            r#"
+                            INSERT INTO timetable_entries (timetable_id, week, day, class_name, class_type, class_time, link)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                            "#,
+                        )
+                        .bind(created_timetable.id)
+                        .bind(week as i32)
+                        .bind(index as i32)
+                        .bind(entry["name"].as_str().unwrap_or_default())
+                        .bind(entry["tag"].as_str().unwrap_or_default())
+                        .bind(class_time)
+                        .bind(None::<String>) // Link is initially null
+                        .execute(&mut *tx)
+                        .await
+                        .context("Failed to insert timetable entry")?;
                     }
                 }
             }
         }
     }
 
-    for entry in entries {
-        entry.insert(conn).await?;
-    }
+    tx.commit().await.context("Failed to commit transaction")?;
 
     Ok(())
 }
 
 pub async fn get_today_timetable(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
-) -> anyhow::Result<Vec<timetable_entries::Model>> {
+) -> anyhow::Result<Vec<TimetableEntryModel>> {
     let week = Week::current();
     let day = Day::current();
-    let entries = TimetableEntry::find()
-        .join(
-            JoinType::InnerJoin,
-            timetable_entries::Relation::Timetables.def(),
-        )
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .filter(timetable_entries::Column::Week.eq(week as i32))
-        .filter(timetable_entries::Column::Day.eq(day as i32))
-        .all(conn)
-        .await?;
+
+    let entries = sqlx::query(
+        r#"
+        SELECT
+            te.id,
+            te.week,
+            te.day,
+            te.timetable_id,
+            te.class_name,
+            te.class_type,
+            te.class_time,
+            te.link
+        FROM timetable_entries te
+        JOIN timetables tt ON te.timetable_id = tt.id
+        WHERE tt.chat_id = $1
+          AND te.week = $2
+          AND te.day = $3
+        ORDER BY te.class_time
+        "#,
+    )
+    .bind(chat_id)
+    .bind(week as i32)
+    .bind(day as i32)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query today's timetable")?
+    .into_iter()
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    })
+    .collect();
 
     Ok(entries)
 }
 
 pub async fn get_tomorrow_timetable(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
-) -> anyhow::Result<Vec<timetable_entries::Model>> {
+) -> anyhow::Result<Vec<TimetableEntryModel>> {
     let mut week = Week::current();
     let day = Day::current();
     if day == Day::Sat {
         week = week.next();
     }
-    let day = day.next();
+    let next_day = day.next();
 
-    let entries = TimetableEntry::find()
-        .join(
-            JoinType::InnerJoin,
-            timetable_entries::Relation::Timetables.def(),
-        )
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .filter(timetable_entries::Column::Week.eq(week as i32))
-        .filter(timetable_entries::Column::Day.eq(day as i32))
-        .all(conn)
-        .await?;
+    let entries = sqlx::query(
+        r#"
+        SELECT
+            te.id,
+            te.week,
+            te.day,
+            te.timetable_id,
+            te.class_name,
+            te.class_type,
+            te.class_time,
+            te.link
+        FROM timetable_entries te
+        JOIN timetables tt ON te.timetable_id = tt.id
+        WHERE tt.chat_id = $1
+          AND te.week = $2
+          AND te.day = $3
+        ORDER BY te.class_time
+        "#,
+    )
+    .bind(chat_id)
+    .bind(week as i32)
+    .bind(next_day as i32)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query tomorrow's timetable")?
+    .into_iter()
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    })
+    .collect();
 
     Ok(entries)
 }
 
 pub async fn get_week_timetable(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
-) -> anyhow::Result<Vec<timetable_entries::Model>> {
+) -> anyhow::Result<Vec<TimetableEntryModel>> {
     let week = Week::current();
-    let entries = TimetableEntry::find()
-        .join(
-            JoinType::InnerJoin,
-            timetable_entries::Relation::Timetables.def(),
-        )
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .filter(timetable_entries::Column::Week.eq(week as i32))
-        .order_by_asc(timetable_entries::Column::Day)
-        .order_by_asc(timetable_entries::Column::ClassTime)
-        .all(conn)
-        .await?;
+
+    let entries = sqlx::query(
+        r#"
+        SELECT
+            te.id,
+            te.week,
+            te.day,
+            te.timetable_id,
+            te.class_name,
+            te.class_type,
+            te.class_time,
+            te.link
+        FROM timetable_entries te
+        JOIN timetables tt ON te.timetable_id = tt.id
+        WHERE tt.chat_id = $1
+          AND te.week = $2
+        ORDER BY te.day, te.class_time
+        "#,
+    )
+    .bind(chat_id)
+    .bind(week as i32)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query week's timetable")?
+    .into_iter()
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    })
+    .collect();
 
     Ok(entries)
 }
 
 pub async fn get_full_timetable(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
-) -> anyhow::Result<Vec<timetable_entries::Model>> {
-    let entries = TimetableEntry::find()
-        .join(
-            JoinType::InnerJoin,
-            timetable_entries::Relation::Timetables.def(),
-        )
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .order_by_asc(timetable_entries::Column::Week)
-        .order_by_asc(timetable_entries::Column::Day)
-        .order_by_asc(timetable_entries::Column::ClassTime)
-        .all(conn)
-        .await?;
+) -> anyhow::Result<Vec<TimetableEntryModel>> {
+    let entries = sqlx::query(
+        r#"
+        SELECT
+            te.id,
+            te.week,
+            te.day,
+            te.timetable_id,
+            te.class_name,
+            te.class_type,
+            te.class_time,
+            te.link
+        FROM timetable_entries te
+        JOIN timetables tt ON te.timetable_id = tt.id
+        WHERE tt.chat_id = $1
+        ORDER BY te.week, te.day, te.class_time
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_all(pool)
+    .await
+    .context("Failed to query full timetable")?
+    .into_iter()
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    })
+    .collect();
 
     Ok(entries)
 }
 
 pub async fn get_current_entry(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
-) -> anyhow::Result<Option<timetable_entries::Model>> {
+) -> anyhow::Result<Option<TimetableEntryModel>> {
     let week = Week::current();
     let day = Day::current();
     let now = get_current_time() - OFFSET;
+    let now_time = now.time();
 
-    tracing::info!("Current time: {}", now.time());
+    tracing::info!("Current time for timetable lookup: {}", now_time);
 
-    let entry = TimetableEntry::find()
-        .join(
-            JoinType::InnerJoin,
-            timetable_entries::Relation::Timetables.def(),
-        )
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .filter(timetable_entries::Column::Week.eq(week as i32))
-        .filter(timetable_entries::Column::Day.eq(day as i32))
-        .filter(timetable_entries::Column::ClassTime.lte(now.time()))
-        .order_by_desc(timetable_entries::Column::ClassTime)
-        .one(conn)
-        .await?;
+    let entry = sqlx::query(
+        r#"
+        SELECT
+            te.id,
+            te.week,
+            te.day,
+            te.timetable_id,
+            te.class_name,
+            te.class_type,
+            te.class_time,
+            te.link
+        FROM timetable_entries te
+        JOIN timetables tt ON te.timetable_id = tt.id
+        WHERE tt.chat_id = $1
+          AND te.week = $2
+          AND te.day = $3
+          AND te.class_time <= $4
+        ORDER BY te.class_time DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(chat_id)
+    .bind(week as i32)
+    .bind(day as i32)
+    .bind(now_time)
+    .fetch_optional(pool)
+    .await
+    .context("Failed to query current timetable entry")?
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    });
 
     Ok(entry)
 }
 
 pub async fn get_next_entry(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     chat_id: &str,
-) -> anyhow::Result<Option<timetable_entries::Model>> {
+) -> anyhow::Result<Option<TimetableEntryModel>> {
     let week = Week::current();
     let day = Day::current();
     let now = get_current_time() - OFFSET;
+    let now_time = now.time();
 
-    let entry = TimetableEntry::find()
-        .join(
-            JoinType::InnerJoin,
-            timetable_entries::Relation::Timetables.def(),
-        )
-        .filter(timetables::Column::ChatId.eq(chat_id))
-        .filter(timetable_entries::Column::Week.eq(week as i32))
-        .filter(timetable_entries::Column::Day.eq(day as i32))
-        .filter(timetable_entries::Column::ClassTime.gte(now.time()))
-        .order_by_asc(timetable_entries::Column::ClassTime)
-        .one(conn)
-        .await?;
+    let entry = sqlx::query(
+        r#"
+        SELECT
+            te.id,
+            te.week,
+            te.day,
+            te.timetable_id,
+            te.class_name,
+            te.class_type,
+            te.class_time,
+            te.link
+        FROM timetable_entries te
+        JOIN timetables tt ON te.timetable_id = tt.id
+        WHERE tt.chat_id = $1
+          AND te.week = $2
+          AND te.day = $3
+          AND te.class_time >= $4
+        ORDER BY te.class_time ASC
+        LIMIT 1
+        "#,
+    )
+    .bind(chat_id)
+    .bind(week as i32)
+    .bind(day as i32)
+    .bind(now_time)
+    .fetch_optional(pool)
+    .await
+    .context("Failed to query next timetable entry")?
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    });
 
     Ok(entry)
 }
 
 pub async fn get_entry_by_id(
-    conn: &DatabaseConnection,
+    pool: &PgPool,
     entry_id: i32,
-) -> anyhow::Result<Option<timetable_entries::Model>> {
-    let entry = TimetableEntry::find_by_id(entry_id).one(conn).await?;
+) -> anyhow::Result<Option<TimetableEntryModel>> {
+    let entry = sqlx::query(
+        r#"
+        SELECT
+            id,
+            week,
+            day,
+            timetable_id,
+            class_name,
+            class_type,
+            class_time,
+            link
+        FROM timetable_entries
+        WHERE id = $1
+        "#,
+    )
+    .bind(entry_id)
+    .fetch_optional(pool)
+    .await
+    .context(format!(
+        "Failed to query timetable entry by id: {}",
+        entry_id
+    ))?
+    .map(|row| TimetableEntryModel {
+        id: row.get("id"),
+        week: row.get("week"),
+        day: row.get("day"),
+        timetable_id: row.get("timetable_id"),
+        class_name: row.get("class_name"),
+        class_type: row.get("class_type"),
+        class_time: row.get("class_time"),
+        link: row.get("link"),
+    });
 
     Ok(entry)
 }
-pub async fn update_link(
-    conn: &DatabaseConnection,
-    entry_id: i32,
-    link: &str,
-) -> anyhow::Result<()> {
-    let entry: Option<timetable_entries::ActiveModel> = TimetableEntry::find_by_id(entry_id)
-        .one(conn)
-        .await?
-        .map(Into::into);
 
-    if let Some(mut entry) = entry {
-        entry.link = Set(Some(link.to_string()));
-        entry.update(conn).await?;
-    }
+pub async fn update_link(pool: &PgPool, entry_id: i32, link: &str) -> anyhow::Result<()> {
+    sqlx::query(
+        r#"
+        UPDATE timetable_entries
+        SET link = $1
+        WHERE id = $2
+        "#,
+    )
+    .bind(link)
+    .bind(entry_id)
+    .execute(pool)
+    .await
+    .context(format!("Failed to update link for entry id: {}", entry_id))?;
 
     Ok(())
 }

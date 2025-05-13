@@ -2,24 +2,22 @@ use r2d2_redis::redis::Commands;
 use setup::RedisStore;
 use teloxide::types::{ChatId, Message, MessageId, UserId};
 
-use crate::entities::{
-    chats::Model as Chat, timetable_entries::Model as TimetableEntry, users::Model as User,
-};
+use crate::models::{chat::ChatModel, timetable::TimetableEntryModel, user::UserModel};
 
 pub mod setup;
 
 #[rustfmt::skip]
 pub trait RedisCache {
     fn clear_all_cache(&self) -> anyhow::Result<()>;
-    fn store_timetable_entries(&self, chat_id: ChatId, timetable_entries: Vec<TimetableEntry>) -> anyhow::Result<()>;
-    fn get_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntry>>;
+    fn store_timetable_entries(&self, chat_id: ChatId, timetable_entries: Vec<TimetableEntryModel>) -> anyhow::Result<()>;
+    fn get_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntryModel>>;
     fn clear_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<()>;
     fn store_message(&self, message: Message) -> anyhow::Result<()>;
     fn get_message(&self, chat_id: ChatId, message_id: MessageId) -> anyhow::Result<Message>;
-    fn store_user(&self, user: User) -> anyhow::Result<()>;
-    fn get_user(&self, user_id: UserId) -> anyhow::Result<User>;
-    fn store_chat(&self, chat: Chat) -> anyhow::Result<()>;
-    fn get_chat(&self, chat_id: ChatId) -> anyhow::Result<Chat>;
+    fn store_user(&self, user: UserModel) -> anyhow::Result<()>;
+    fn get_user(&self, user_id: UserId) -> anyhow::Result<UserModel>;
+    fn store_chat(&self, chat: ChatModel) -> anyhow::Result<()>;
+    fn get_chat(&self, chat_id: ChatId) -> anyhow::Result<ChatModel>;
     fn store_chat_ids(&self, chat_ids: Vec<ChatId>) -> anyhow::Result<()>;
     fn get_all_chat_ids(&self) -> anyhow::Result<Vec<ChatId>>;
 }
@@ -38,7 +36,7 @@ impl RedisCache for RedisStore {
     fn store_timetable_entries(
         &self,
         chat_id: ChatId,
-        timetable_entries: Vec<TimetableEntry>,
+        timetable_entries: Vec<TimetableEntryModel>,
     ) -> anyhow::Result<()> {
         let mut con = self.get_connection()?;
         let list_key = format!("timetable_entries:{}", chat_id);
@@ -51,7 +49,7 @@ impl RedisCache for RedisStore {
 
         Ok(())
     }
-    fn get_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntry>> {
+    fn get_timetable_entries(&self, chat_id: ChatId) -> anyhow::Result<Vec<TimetableEntryModel>> {
         let mut con = self.get_connection()?;
         let list_key = format!("timetable_entries:{}", chat_id);
         if !con.exists(&list_key)? {
@@ -62,7 +60,7 @@ impl RedisCache for RedisStore {
         for entry_id in entry_ids {
             let key = format!("timetable_entry:{}:{}", chat_id, entry_id);
             let serialized: String = con.get(&key)?;
-            let entry: TimetableEntry = serde_json::from_str(&serialized)?;
+            let entry: TimetableEntryModel = serde_json::from_str(&serialized)?;
             entries.push(entry);
         }
 
@@ -106,7 +104,7 @@ impl RedisCache for RedisStore {
 
         Ok(message)
     }
-    fn store_user(&self, user: User) -> anyhow::Result<()> {
+    fn store_user(&self, user: UserModel) -> anyhow::Result<()> {
         let mut con = self.get_connection()?;
         let serialized = serde_json::to_string(&user)?;
         let key = format!("user:{}", user.id);
@@ -114,14 +112,14 @@ impl RedisCache for RedisStore {
 
         Ok(())
     }
-    fn get_user(&self, user_id: UserId) -> anyhow::Result<User> {
+    fn get_user(&self, user_id: UserId) -> anyhow::Result<UserModel> {
         let mut con = self.get_connection()?;
         let key = format!("user:{}", user_id);
         let serialized: String = con.get(&key)?;
-        let user: User = serde_json::from_str(&serialized)?;
+        let user: UserModel = serde_json::from_str(&serialized)?;
         Ok(user)
     }
-    fn store_chat(&self, chat: Chat) -> anyhow::Result<()> {
+    fn store_chat(&self, chat: ChatModel) -> anyhow::Result<()> {
         let mut con = self.get_connection()?;
         let serialized = serde_json::to_string(&chat)?;
         let key = format!("chat:{}", chat.id);
@@ -129,11 +127,11 @@ impl RedisCache for RedisStore {
 
         Ok(())
     }
-    fn get_chat(&self, chat_id: ChatId) -> anyhow::Result<Chat> {
+    fn get_chat(&self, chat_id: ChatId) -> anyhow::Result<ChatModel> {
         let mut con = self.get_connection()?;
         let key = format!("chat:{}", chat_id);
         let serialized: String = con.get(&key)?;
-        let chat: Chat = serde_json::from_str(&serialized)?;
+        let chat: ChatModel = serde_json::from_str(&serialized)?;
 
         Ok(chat)
     }
