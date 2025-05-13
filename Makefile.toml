@@ -1,4 +1,0 @@
-[tasks.entities]
-install_crate = "sea-orm-cli"
-command = "sea-orm-cli"
-args = ["generate", "entity", "-o", "src/entities"]
