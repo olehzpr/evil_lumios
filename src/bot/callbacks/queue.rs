@@ -13,6 +13,7 @@ use crate::{
         queue::{add_user_to_queue, get_queue_by_id, get_users},
         user::get_user_by_account_id,
     },
+    delete_message,
     state::State,
 };
 
@@ -151,12 +152,15 @@ pub async fn notify_queue(
         return Ok(());
     }
     let queue_message_id = queue.message_id.parse::<i32>().unwrap();
-    bot.send_message(
-        query.chat_id().unwrap(),
-        ui::queue::notification(&users[0], &queue),
-    )
-    .reply_parameters(ReplyParameters::new(MessageId(queue_message_id)))
-    .await?;
+    let new_msg = bot
+        .send_message(
+            query.chat_id().unwrap(),
+            ui::queue::notification(&users[0], &queue),
+        )
+        .reply_parameters(ReplyParameters::new(MessageId(queue_message_id)))
+        .await?;
+
+    delete_message!(state, new_msg);
 
     Ok(())
 }
