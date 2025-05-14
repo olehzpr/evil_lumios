@@ -167,22 +167,22 @@ pub async fn shuffle_queue(
     queue_id: i32,
     query: CallbackQuery,
 ) -> HandlerResult {
-    // tracing::debug!("Shuffling queue {}", queue_id);
-    // db::queue::shuffle_queue(&state.db, queue_id).await?;
+    tracing::debug!("Shuffling queue {}", queue_id);
+    db::queue::shuffle_queue(&state.db, queue_id).await?;
 
-    // let queue = get_queue_by_id(&state.db, queue_id).await?;
-    // let users = get_users(&state.db, queue_id).await?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
-    // let message_id = queue.message_id.parse::<i32>().unwrap();
-    // let updated_content = ui::queue::regular_queue(&queue, users);
+    let message_id = queue.message_id.parse::<i32>().unwrap();
+    let updated_content = ui::queue::regular_queue(&queue, users);
 
-    // bot.edit_mixed_queue(
-    //     query.chat_id().unwrap(),
-    //     MessageId(message_id),
-    //     queue.id,
-    //     &updated_content,
-    // )
-    // .await;
+    bot.edit_mixed_queue(
+        query.chat_id().unwrap(),
+        MessageId(message_id),
+        queue.id,
+        &updated_content,
+    )
+    .await;
 
     Ok(())
 }
@@ -193,26 +193,26 @@ pub async fn freeze_queue(
     queue_id: i32,
     query: CallbackQuery,
 ) -> HandlerResult {
-    // tracing::debug!("Freezing queue {}", queue_id);
+    tracing::debug!("Freezing queue {}", queue_id);
 
-    // let user_id = query.from.id;
-    // let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
+    let user_id = query.from.id;
+    let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    // db::queue::freeze_user(&state.db, queue_id, user_who_clicked.id).await?;
+    db::queue::freeze_user(&state.db, queue_id, user_who_clicked.id).await?;
 
-    // let queue = get_queue_by_id(&state.db, queue_id).await?;
-    // let users = get_users(&state.db, queue_id).await?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
-    // let message_id = queue.message_id.parse::<i32>().unwrap();
-    // let updated_content = ui::queue::regular_queue(&queue, users);
+    let message_id = queue.message_id.parse::<i32>().unwrap();
+    let updated_content = ui::queue::regular_queue(&queue, users);
 
-    // bot.edit_priority_queue(
-    //     query.chat_id().unwrap(),
-    //     MessageId(message_id),
-    //     queue.id,
-    //     &updated_content,
-    // )
-    // .await;
+    bot.edit_priority_queue(
+        query.chat_id().unwrap(),
+        MessageId(message_id),
+        queue.id,
+        &updated_content,
+    )
+    .await;
 
     Ok(())
 }
@@ -223,26 +223,26 @@ pub async fn skip_queue(
     queue_id: i32,
     query: CallbackQuery,
 ) -> HandlerResult {
-    // tracing::debug!("Skipping queue {}", queue_id);
+    tracing::debug!("Skipping queue {}", queue_id);
 
-    // let user_id = query.from.id;
-    // let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
+    let user_id = query.from.id;
+    let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    // db::queue::leave_from_priority_queue(&state.db, queue_id, user_who_clicked.id).await?;
+    db::queue::leave_from_priority_queue(&state.db, queue_id, user_who_clicked.id).await?;
 
-    // let queue = get_queue_by_id(&state.db, queue_id).await?;
-    // let users = get_users(&state.db, queue_id).await?;
+    let queue = get_queue_by_id(&state.db, queue_id).await?;
+    let users = get_users(&state.db, queue_id).await?;
 
-    // let message_id = queue.message_id.parse::<i32>().unwrap();
-    // let updated_content = ui::queue::regular_queue(&queue, users);
+    let message_id = queue.message_id.parse::<i32>().unwrap();
+    let updated_content = ui::queue::regular_queue(&queue, users);
 
-    // bot.edit_priority_queue(
-    //     query.chat_id().unwrap(),
-    //     MessageId(message_id),
-    //     queue.id,
-    //     &updated_content,
-    // )
-    // .await;
+    bot.edit_priority_queue(
+        query.chat_id().unwrap(),
+        MessageId(message_id),
+        queue.id,
+        &updated_content,
+    )
+    .await;
 
     Ok(())
 }

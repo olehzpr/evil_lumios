@@ -519,7 +519,11 @@ pub async fn order_by_priority(pool: &PgPool, queue_id: i32) -> anyhow::Result<(
     Ok(())
 }
 
-pub async fn leave_from_priority_queue(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
+pub async fn leave_from_priority_queue(
+    pool: &PgPool,
+    queue_id: i32,
+    user_id: i32,
+) -> anyhow::Result<()> {
     let mut tx = pool
         .begin()
         .await
@@ -533,6 +537,7 @@ pub async fn leave_from_priority_queue(pool: &PgPool, queue_id: i32) -> anyhow::
         "#,
     )
     .bind(queue_id)
+    .bind(user_id)
     .fetch_optional(&mut *tx)
     .await
     .context("Failed to query user to leave priority queue")?;
@@ -627,7 +632,7 @@ pub async fn leave_from_priority_queue(pool: &PgPool, queue_id: i32) -> anyhow::
     Ok(())
 }
 
-pub async fn freeze_user(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
+pub async fn freeze_user(pool: &PgPool, queue_id: i32, user_id: i32) -> anyhow::Result<()> {
     let result = sqlx::query(
         r#"
         UPDATE queue_users
@@ -636,6 +641,7 @@ pub async fn freeze_user(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
         "#,
     )
     .bind(queue_id)
+    .bind(user_id)
     .execute(pool)
     .await
     .context("Failed to freeze user in queue")?;
