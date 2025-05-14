@@ -1,5 +1,5 @@
 use crate::models::{
-    queue::{QueueModel, QueueUserModel},
+    queue::{QueueModel, QueueUserModel, QueueUserWithUserModel},
     user::UserModel,
 };
 
@@ -25,7 +25,7 @@ pub fn start_message(name: String, queue_type: QueueType) -> String {
     )
 }
 
-pub fn regular_queue(queue: &QueueModel, users: Vec<UserModel>) -> String {
+pub fn regular_queue(queue: &QueueModel, users: Vec<QueueUserWithUserModel>) -> String {
     let queue_type = if queue.is_mixed.is_some() {
         QueueType::Mixed
     } else {
@@ -81,7 +81,7 @@ pub fn priority_queue(
     message
 }
 
-pub fn notification(user: &UserModel, queue: &QueueModel) -> String {
+pub fn notification(user: &QueueUserWithUserModel, queue: &QueueModel) -> String {
     format!(
         "{} – твоя черга відповідати в черзі '{}'",
         user.name, queue.title

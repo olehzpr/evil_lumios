@@ -12,7 +12,7 @@ use crate::{
         callbacks::handle_callback,
         general,
         inline::answer_inline_query,
-        stats,
+        queues, stats,
         timetable::{self, external::receive_timetable_entry_link},
     },
     config::{commands::Command, state::StateMachine},
@@ -48,9 +48,9 @@ pub fn handler() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'sta
         .branch(case![Command::Import].endpoint(timetable::commands::import))
         .branch(case![Command::EditTimetable].endpoint(timetable::commands::edit_timetable))
         // queues
-        // .branch(case![Command::Queue].endpoint(queues::commands::queue))
-        // .branch(case![Command::Mixed].endpoint(queues::commands::mixed))
-        // .branch(case![Command::PriorityQueue].endpoint(queues::commands::priority_queue))
+        .branch(case![Command::Queue].endpoint(queues::commands::queue))
+        .branch(case![Command::Mixed].endpoint(queues::commands::mixed))
+        .branch(case![Command::PriorityQueue].endpoint(queues::commands::priority_queue))
         // stats
         .branch(case![Command::Stats].endpoint(stats::commands::stats))
         .branch(case![Command::Casino].endpoint(stats::commands::casino))

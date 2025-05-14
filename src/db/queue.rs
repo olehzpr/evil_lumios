@@ -8,9 +8,9 @@ use crate::models::queue::{QueueModel, QueueUserModel, QueueUserWithUserModel};
 
 pub async fn create_queue(
     pool: &PgPool,
-    title: String,
-    chat_id: String,
-    message_id: String,
+    title: &String,
+    chat_id: ChatId,
+    message_id: MessageId,
     is_mixed: Option<bool>,
     is_priority: bool,
 ) -> anyhow::Result<QueueModel> {
@@ -22,8 +22,8 @@ pub async fn create_queue(
         "#,
     )
     .bind(title)
-    .bind(chat_id)
-    .bind(message_id)
+    .bind(chat_id.to_string())
+    .bind(message_id.to_string())
     .bind(is_mixed)
     .bind(is_priority)
     .fetch_one(pool)
@@ -322,6 +322,7 @@ pub async fn get_queue_user(
 pub async fn add_user_to_queue(
     pool: &PgPool,
     queue_id: i32,
+    user_id: i32,
     priority: Option<i32>,
 ) -> anyhow::Result<QueueUserModel> {
     let mut tx = pool
@@ -354,8 +355,10 @@ pub async fn add_user_to_queue(
         "#,
     )
     .bind(queue_id)
+    .bind(user_id)
     .bind(priority)
     .bind(next_position)
+    .bind(false)
     .fetch_one(&mut *tx)
     .await
     .context("Failed to insert new queue user")?;
@@ -376,7 +379,11 @@ pub async fn add_user_to_queue(
     Ok(new_user)
 }
 
-pub async fn remove_user_from_queue(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
+pub async fn remove_user_from_queue(
+    pool: &PgPool,
+    queue_id: i32,
+    user_id: i32,
+) -> anyhow::Result<()> {
     let mut tx = pool
         .begin()
         .await
@@ -390,6 +397,7 @@ pub async fn remove_user_from_queue(pool: &PgPool, queue_id: i32) -> anyhow::Res
         "#,
     )
     .bind(queue_id)
+    .bind(user_id)
     .fetch_optional(&mut *tx)
     .await
     .context("Failed to query user to remove")?;
@@ -420,6 +428,7 @@ pub async fn remove_user_from_queue(pool: &PgPool, queue_id: i32) -> anyhow::Res
         "#,
     )
     .bind(queue_id)
+    .bind(user_id)
     .execute(&mut *tx)
     .await
     .context("Failed to delete queue user")?;
