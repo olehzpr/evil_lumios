@@ -1,5 +1,6 @@
 pub mod api;
 pub mod bot;
+pub mod clients;
 pub mod config;
 pub mod cron;
 pub mod models;
