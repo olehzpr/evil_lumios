@@ -5,7 +5,6 @@ use sqlx::FromRow;
 pub struct ChatModel {
     pub id: i32,
     pub chat_id: i64,
-    pub group_id: Option<i64>,
     pub title: String,
     pub description: Option<String>,
 }

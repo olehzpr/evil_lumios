@@ -21,7 +21,7 @@ pub async fn create_chat_if_not_exists(
 
     let existing_chat = sqlx::query(
         r#"
-        SELECT id, chat_id, group_id, title, description
+        SELECT id, chat_id, title, description
         FROM chats
         WHERE chat_id = $1
         "#,
@@ -34,7 +34,6 @@ pub async fn create_chat_if_not_exists(
     let existing_chat = existing_chat.map(|row| ChatModel {
         id: row.get("id"),
         chat_id: row.get("chat_id"),
-        group_id: row.get("group_id"),
         title: row.get("title"),
         description: row.get("description"),
     });
@@ -50,13 +49,12 @@ pub async fn create_chat_if_not_exists(
 
     let new_chat = sqlx::query(
         r#"
-        INSERT INTO chats (chat_id, group_id, title, description)
+        INSERT INTO chats (chat_id, title, description)
         VALUES ($1, $2, $3, $4)
-        RETURNING id, chat_id, group_id, title, description
+        RETURNING id, chat_id, title, description
         "#,
     )
     .bind(&chat.id.0)
-    .bind(None::<String>)
     .bind(chat.title().unwrap_or_default().to_owned())
     .bind(chat.description().map(|desc| desc.to_string()))
     .fetch_one(pool)
@@ -66,7 +64,6 @@ pub async fn create_chat_if_not_exists(
     let new_chat = ChatModel {
         id: new_chat.get("id"),
         chat_id: new_chat.get("chat_id"),
-        group_id: new_chat.get("group_id"),
         title: new_chat.get("title"),
         description: new_chat.get("description"),
     };
@@ -81,7 +78,7 @@ pub async fn create_chat_if_not_exists(
 pub async fn get_chat_ids(pool: &PgPool) -> anyhow::Result<Vec<ChatId>> {
     let chats = sqlx::query(
         r#"
-        SELECT id, chat_id, group_id, title, description
+        SELECT id, chat_id, title, description
         FROM chats
         "#,
     )
@@ -94,7 +91,6 @@ pub async fn get_chat_ids(pool: &PgPool) -> anyhow::Result<Vec<ChatId>> {
         .map(|row| ChatModel {
             id: row.get("id"),
             chat_id: row.get("chat_id"),
-            group_id: row.get("group_id"),
             title: row.get("title"),
             description: row.get("description"),
         })
