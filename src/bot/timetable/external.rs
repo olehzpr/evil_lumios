@@ -1,7 +1,7 @@
 use crate::config::state::{BotDialogue, StateMachine};
 use crate::{
     bot::handler::HandlerResult,
-    db::timetable::{get_entry_by_id, update_link},
+    repositories::timetable_repository::{get_entry_by_id, update_link},
     state::State,
 };
 use reqwest::Url;

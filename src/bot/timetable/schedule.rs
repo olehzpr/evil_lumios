@@ -3,7 +3,7 @@ use teloxide::types::ChatId;
 
 use crate::{
     bot::utils::time::get_current_time,
-    db::{self, timetable::get_full_timetable},
+    repositories::{self, timetable_repository::get_full_timetable},
     models::timetable::TimetableEntryModel,
     redis::RedisCache,
     state::{Event, State},
@@ -45,7 +45,7 @@ async fn get_chat_ids(state: &State) -> anyhow::Result<Vec<ChatId>> {
     if let Ok(chat_ids) = state.redis.get_all_chat_ids() {
         return Ok(chat_ids);
     }
-    let chat_ids = db::chat::get_chat_ids(&state.db).await?;
+    let chat_ids = repositories::chat_repository::get_chat_ids(&state.db).await?;
     state.redis.store_chat_ids(chat_ids.clone())?;
     Ok(chat_ids)
 }

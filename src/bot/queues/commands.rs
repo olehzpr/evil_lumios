@@ -1,6 +1,6 @@
 use crate::bot::queues::QueueMessages;
 use crate::bot::ui;
-use crate::db::queue::create_queue;
+use crate::repositories::queue_repository::create_queue;
 use crate::delete_message;
 use crate::state::State;
 use crate::{bot::handler::HandlerResult, param};

@@ -8,10 +8,10 @@ use teloxide::{
 
 use crate::{
     bot::{handler::HandlerResult, queues::QueueMessages, ui},
-    db::{
+    repositories::{
         self,
-        queue::{add_user_to_queue, get_queue_by_id, get_users},
-        user::get_user_by_account_id,
+        queue_repository::{add_user_to_queue, get_queue_by_id, get_users},
+        user_repository::get_user_by_account_id,
     },
     delete_message,
     state::State,
@@ -48,7 +48,7 @@ pub async fn leave_queue(
     query: CallbackQuery,
 ) -> HandlerResult {
     let stored_user = get_user_by_account_id(&state, query.from.id).await?;
-    db::queue::remove_user_from_queue(&state.db, queue_id, stored_user.id).await?;
+    repositories::queue_repository::remove_user_from_queue(&state.db, queue_id, stored_user.id).await?;
 
     let queue = get_queue_by_id(&state.db, queue_id).await?;
     let users = get_users(&state.db, queue_id).await?;
@@ -74,7 +74,7 @@ pub async fn delete_queue(
 
     let queue = get_queue_by_id(&state.db, queue_id).await?;
 
-    db::queue::delete_queue(&state.db, queue.id).await?;
+    repositories::queue_repository::delete_queue(&state.db, queue.id).await?;
 
     bot.delete_message(ChatId(queue.chat_id), MessageId(queue.message_id))
         .await?;
@@ -122,7 +122,7 @@ pub async fn shuffle_queue(
     }
 
     tracing::debug!("Shuffling queue with id: {}", queue_id);
-    db::queue::shuffle_queue(&state.db, queue_id).await?;
+    repositories::queue_repository::shuffle_queue(&state.db, queue_id).await?;
 
     let queue = get_queue_by_id(&state.db, queue_id).await?;
     let users = get_users(&state.db, queue_id).await?;
@@ -143,7 +143,7 @@ pub async fn freeze_queue(
     let user_id = query.from.id;
     let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    db::queue::freeze_user(&state.db, queue_id, user_who_clicked.id).await?;
+    repositories::queue_repository::freeze_user(&state.db, queue_id, user_who_clicked.id).await?;
 
     let queue = get_queue_by_id(&state.db, queue_id).await?;
     let users = get_users(&state.db, queue_id).await?;
@@ -164,7 +164,7 @@ pub async fn skip_queue(
     let user_id = query.from.id;
     let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    db::queue::skip_priority_queue(&state.db, queue_id, user_who_clicked.id, false).await?;
+    repositories::queue_repository::skip_priority_queue(&state.db, queue_id, user_who_clicked.id, false).await?;
 
     let queue = get_queue_by_id(&state.db, queue_id).await?;
     let users = get_users(&state.db, queue_id).await?;
@@ -185,7 +185,7 @@ pub async fn done_queue(
     let user_id = query.from.id;
     let user_who_clicked = get_user_by_account_id(&state, user_id).await?;
 
-    db::queue::skip_priority_queue(&state.db, queue_id, user_who_clicked.id, true).await?;
+    repositories::queue_repository::skip_priority_queue(&state.db, queue_id, user_who_clicked.id, true).await?;
 
     let queue = get_queue_by_id(&state.db, queue_id).await?;
     let users = get_users(&state.db, queue_id).await?;

@@ -1,6 +1,6 @@
 use crate::{
     bot::handler::HandlerResult,
-    db::{self, stats::transfer_reaction_points},
+    repositories::{self, stats_repository::transfer_reaction_points},
     models::user::UserModel,
     redis::RedisCache,
     state::State,
@@ -34,7 +34,7 @@ async fn get_user(state: &State, user_id: UserId) -> anyhow::Result<UserModel> {
     if let Ok(user) = state.redis.get_user(user_id) {
         Ok(user)
     } else {
-        let user = db::user::get_user_by_account_id(&state, user_id).await?;
+        let user = repositories::user_repository::get_user_by_account_id(&state, user_id).await?;
         state.redis.store_user(user.clone())?;
         Ok(user)
     }

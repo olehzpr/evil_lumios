@@ -16,7 +16,9 @@ use crate::{
         timetable::{self, external::receive_timetable_entry_link},
     },
     config::{commands::Command, state::StateMachine},
-    db::{chat::create_chat_if_not_exists, user::create_user_if_not_exists},
+    repositories::{
+        chat_repository::create_chat_if_not_exists, user_repository::create_user_if_not_exists,
+    },
     state::State,
 };
 use dptree::case;

@@ -10,8 +10,8 @@ use teloxide::{
 
 use crate::{
     bot::ui,
-    db::timetable::get_entry_by_id,
     delete_message,
+    repositories::timetable_repository::get_entry_by_id,
     state::{Event, State},
 };
 

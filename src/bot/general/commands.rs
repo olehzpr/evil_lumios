@@ -1,4 +1,6 @@
-use crate::{bot::handler::HandlerResult, db::timetable::get_entry_by_id, state::State};
+use crate::{
+    bot::handler::HandlerResult, repositories::timetable_repository::get_entry_by_id, state::State,
+};
 use reqwest::Url;
 use teloxide::{
     payloads::{SendMessageSetters, SendPhotoSetters},

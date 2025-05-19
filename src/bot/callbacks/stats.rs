@@ -5,7 +5,7 @@ use teloxide::{
     Bot,
 };
 
-use crate::{bot::handler::HandlerResult, db::stats::get_full_me, state::State};
+use crate::{bot::handler::HandlerResult, repositories::stats_repository::get_full_me, state::State};
 
 pub async fn show_full_stats(
     bot: Bot,

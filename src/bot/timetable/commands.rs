@@ -9,7 +9,7 @@ use teloxide::{
 
 use crate::{
     bot::ui::{self},
-    db::timetable::{
+    repositories::timetable_repository::{
         get_current_entry, get_full_timetable, get_next_entry, get_today_timetable,
         get_tomorrow_timetable, get_week_timetable, import_timetable,
     },

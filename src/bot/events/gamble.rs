@@ -9,7 +9,7 @@ use teloxide::{
 
 use crate::{
     bot::ui,
-    db,
+    repositories,
     state::{Event, State},
 };
 
@@ -18,7 +18,7 @@ pub async fn show_gamble_result(bot: Arc<Bot>, state: State, event: Event) -> an
         return Ok(());
     };
 
-    let gamble = db::gamble::get_gamble_by_id(&state.db, gamble_id).await?;
+    let gamble = repositories::gamble_repository::get_gamble_by_id(&state.db, gamble_id).await?;
     if let None = gamble {
         return Ok(());
     }

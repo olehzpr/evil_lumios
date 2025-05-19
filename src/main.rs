@@ -2,9 +2,9 @@ pub mod api;
 pub mod bot;
 pub mod config;
 pub mod cron;
-pub mod db;
 pub mod models;
 pub mod redis;
+pub mod repositories;
 pub mod state;
 
 use std::env;
@@ -27,7 +27,7 @@ async fn main() {
         .init();
     tracing::info!("Starting app");
 
-    let db = db::setup::connect_db().await;
+    let db = repositories::setup::connect_db().await;
     let redis = redis::setup::RedisStore::from_env();
 
     let state = AppState::new(db, redis);
