@@ -20,7 +20,7 @@ pub async fn notify(bot: Arc<Bot>, state: State, event: Event) -> anyhow::Result
         return Ok(());
     };
     let entry = get_entry_by_id(&state.db, entry_id).await?;
-    let res = ui::timetable::entry_view(entry.clone());
+    let res = ui::timetable_ui::entry_view(entry.clone());
 
     let bot_username = bot.get_me().await?.user.username.unwrap();
 

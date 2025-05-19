@@ -1,4 +1,4 @@
-pub mod queue;
-pub mod stats;
-pub mod timetable;
+pub mod queue_ui;
+pub mod stats_ui;
+pub mod timetable_ui;
 pub mod utils;

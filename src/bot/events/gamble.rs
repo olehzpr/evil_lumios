@@ -25,9 +25,9 @@ pub async fn show_gamble_result(bot: Arc<Bot>, state: State, event: Event) -> an
     let gamble = gamble.unwrap();
 
     let content = if gamble.is_win {
-        ui::stats::generate_win_message(gamble.bet, gamble.bet + gamble.change)
+        ui::stats_ui::generate_win_message(gamble.bet, gamble.bet + gamble.change)
     } else {
-        ui::stats::generate_lose_message(gamble.bet, gamble.bet + gamble.change)
+        ui::stats_ui::generate_lose_message(gamble.bet, gamble.bet + gamble.change)
     };
     let message_id = MessageId(gamble.message_id);
     tokio::spawn(async move {

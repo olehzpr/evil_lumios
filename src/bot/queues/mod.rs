@@ -77,9 +77,9 @@ pub trait QueueMessages {
 impl QueueMessages for Bot {
     async fn edit_queue(&self, queue: QueueModel, users: Vec<QueueUserWithUserModel>) {
         let content = if queue.is_priority {
-            ui::queue::priority_queue(&queue, users)
+            ui::queue_ui::priority_queue(&queue, users)
         } else {
-            ui::queue::regular_queue(&queue, users)
+            ui::queue_ui::regular_queue(&queue, users)
         };
 
         let markup = if queue.is_mixed.is_some() {

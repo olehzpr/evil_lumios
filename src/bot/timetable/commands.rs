@@ -64,7 +64,7 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
 pub async fn today(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entries = get_today_timetable(&state.db, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::day_view(entries);
+    let res = ui::timetable_ui::day_view(entries);
 
     let new_msg = bot
         .send_message(msg.chat.id, res)
@@ -80,7 +80,7 @@ pub async fn today(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
 pub async fn tomorrow(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entries = get_tomorrow_timetable(&state.db, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::day_view(entries);
+    let res = ui::timetable_ui::day_view(entries);
 
     let new_msg = bot
         .send_message(msg.chat.id, res)
@@ -95,7 +95,7 @@ pub async fn tomorrow(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
 pub async fn week(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entries = get_week_timetable(&state.db, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::week_view(entries);
+    let res = ui::timetable_ui::week_view(entries);
 
     let new_msg = bot
         .send_message(msg.chat.id, res)
@@ -110,7 +110,7 @@ pub async fn week(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
 pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entries = get_full_timetable(&state.db, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::edit_view(entries);
+    let res = ui::timetable_ui::edit_view(entries);
 
     let new_msg = bot
         .send_message(msg.chat.id, res)
@@ -125,7 +125,7 @@ pub async fn edit_timetable(bot: Bot, msg: Message, state: State) -> HandlerResu
 
 pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entry = get_current_entry(&state.db, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::entry_view(entry.clone());
+    let res = ui::timetable_ui::entry_view(entry.clone());
     let bot_username = bot.get_me().await?.user.username.unwrap();
 
     if let Some(entry) = entry {
@@ -163,7 +163,7 @@ pub async fn now(bot: Bot, msg: Message, state: State) -> HandlerResult {
 
 pub async fn next(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let entry = get_next_entry(&state.db, &msg.chat.id.to_string()).await?;
-    let res = ui::timetable::entry_view(entry.clone());
+    let res = ui::timetable_ui::entry_view(entry.clone());
     let bot_username = bot.get_me().await?.user.username.unwrap();
 
     if let Some(entry) = entry {

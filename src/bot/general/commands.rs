@@ -82,7 +82,7 @@ async fn edit_timetable_entry(
     let entry = get_entry_by_id(&state.db, entry_id).await?;
     bot.send_message(
         msg.chat.id,
-        ui::timetable::update_link_view(&entry.unwrap()),
+        ui::timetable_ui::update_link_view(&entry.unwrap()),
     )
     .parse_mode(teloxide::types::ParseMode::MarkdownV2)
     .await?;
@@ -94,7 +94,7 @@ async fn edit_timetable_entry(
 }
 
 async fn enter_casino(bot: Bot, msg: Message) -> HandlerResult {
-    let (res, img_url) = ui::stats::casino_arrival();
+    let (res, img_url) = ui::stats_ui::casino_arrival();
     bot.send_photo(msg.chat.id, InputFile::url(Url::parse(&img_url).unwrap()))
         .caption(&res)
         .reply_markup(InlineKeyboardMarkup::new(vec![vec![
@@ -124,7 +124,7 @@ async fn edit_timetable_entry_from_message(
     let entry = get_entry_by_id(&state.db, entry_id).await?;
     bot.send_message(
         msg.chat.id,
-        ui::timetable::update_link_view(&entry.unwrap()),
+        ui::timetable_ui::update_link_view(&entry.unwrap()),
     )
     .parse_mode(teloxide::types::ParseMode::MarkdownV2)
     .await?;

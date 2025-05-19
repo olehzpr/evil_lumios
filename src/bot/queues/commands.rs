@@ -60,7 +60,7 @@ pub async fn priority_queue(bot: Bot, msg: Message, state: State) -> HandlerResu
 
 async fn loading_message(bot: &Bot, chat_id: ChatId) -> anyhow::Result<Message> {
     let msg = bot
-        .send_message(chat_id, ui::queue::title(&"Нова черга".to_string()))
+        .send_message(chat_id, ui::queue_ui::title(&"Нова черга".to_string()))
         .await?;
 
     Ok(msg)

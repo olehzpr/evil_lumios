@@ -17,7 +17,7 @@ use super::gifs::get_random_gif;
 
 pub async fn stats(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let users_stats = get_group_stats(&state.db, msg.chat.id).await?;
-    let res = ui::stats::group_stats(users_stats);
+    let res = ui::stats_ui::group_stats(users_stats);
     let new_msg = bot
         .send_message(msg.chat.id, &res)
         .parse_mode(teloxide::types::ParseMode::MarkdownV2)
@@ -30,7 +30,7 @@ pub async fn stats(bot: Bot, msg: Message, state: State) -> HandlerResult {
 }
 
 pub async fn casino(bot: Bot, msg: Message, state: State) -> HandlerResult {
-    let (res, url) = ui::stats::casino_welcome();
+    let (res, url) = ui::stats_ui::casino_welcome();
     let bot_name = bot.get_me().await?.user.username.unwrap();
     let new_msg = bot
         .send_photo(msg.chat.id, InputFile::url(Url::parse(&url).unwrap()))
@@ -54,7 +54,7 @@ pub async fn casino(bot: Bot, msg: Message, state: State) -> HandlerResult {
 pub async fn me(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let user_id = msg.from.as_ref().unwrap().id;
     let stats = get_user_stats(&state.db, msg.from.unwrap().id).await?;
-    let res = ui::stats::short_stats(stats);
+    let res = ui::stats_ui::short_stats(stats);
     if let Err(e) = state.sender.send(Event::DeleteMessage {
         chat_id: msg.chat.id,
         message_id: msg.id,
