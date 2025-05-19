@@ -293,8 +293,6 @@ pub async fn update_balance(pool: &PgPool, user_db_id: i32, change: i32) -> anyh
 }
 
 pub async fn get_group_stats(pool: &PgPool, chat_id: ChatId) -> anyhow::Result<GroupStats> {
-    let chat_id_str = chat_id.to_string();
-
     let group_stats = sqlx::query(
         r#"
         SELECT
@@ -306,12 +304,12 @@ pub async fn get_group_stats(pool: &PgPool, chat_id: ChatId) -> anyhow::Result<G
         ORDER BY us.balance DESC
         "#,
     )
-    .bind(chat_id_str.clone())
+    .bind(chat_id.0)
     .fetch_all(pool)
     .await
     .context(format!(
         "Failed to query group stats for chat_id: {}",
-        chat_id_str
+        chat_id
     ))?
     .into_iter()
     .map(|row| GroupMemberStat {
@@ -325,15 +323,15 @@ pub async fn get_group_stats(pool: &PgPool, chat_id: ChatId) -> anyhow::Result<G
         SELECT title FROM chats WHERE chat_id = $1
         "#,
     )
-    .bind(&chat_id_str)
+    .bind(&chat_id.0)
     .fetch_optional(pool)
     .await
     .context(format!(
         "Failed to query chat title for chat_id: {}",
-        chat_id_str
+        chat_id
     ))?
     .and_then(|row| row.try_get("title").ok())
-    .ok_or_else(|| anyhow::anyhow!("Chat not found for chat_id: {}", chat_id_str))?;
+    .ok_or_else(|| anyhow::anyhow!("Chat not found for chat_id: {}", chat_id))?;
 
     Ok(GroupStats {
         group_name: group,
