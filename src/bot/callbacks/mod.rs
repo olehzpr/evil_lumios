@@ -8,8 +8,8 @@ use crate::state::State;
 
 use super::handler::HandlerResult;
 
-pub mod queue;
-pub mod stats;
+pub mod queue_callbacks;
+pub mod stats_callbacks;
 
 pub enum Callback {
     ShowFullStats(MessageId, UserId),
@@ -79,31 +79,31 @@ pub async fn handle_callback(bot: Bot, state: State, q: CallbackQuery) -> Handle
     }
     match Callback::from_str(q.data.as_ref().unwrap()) {
         Some(Callback::ShowFullStats(message_id, user_id)) => {
-            stats::show_full_stats(bot, state, message_id, user_id, q).await?;
+            stats_callbacks::show_full_stats(bot, state, message_id, user_id, q).await?;
         }
         Some(Callback::JoinQueue(queue_id)) => {
-            queue::join_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::join_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::LeaveQueue(queue_id)) => {
-            queue::leave_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::leave_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::DeleteQueue(queue_id)) => {
-            queue::delete_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::delete_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::NotifyQueue(queue_id)) => {
-            queue::notify_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::notify_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::ShuffleQueue(queue_id)) => {
-            queue::shuffle_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::shuffle_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::FreezeQueue(queue_id)) => {
-            queue::freeze_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::freeze_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::SkipQueue(queue_id)) => {
-            queue::skip_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::skip_queue(bot, state, queue_id, q).await?;
         }
         Some(Callback::DoneQueue(queue_id)) => {
-            queue::done_queue(bot, state, queue_id, q).await?;
+            queue_callbacks::done_queue(bot, state, queue_id, q).await?;
         }
         None => {
             bot.answer_callback_query(q.id).await?;
