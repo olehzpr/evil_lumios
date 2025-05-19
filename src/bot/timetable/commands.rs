@@ -49,7 +49,7 @@ pub async fn import(bot: Bot, msg: Message, state: State) -> HandlerResult {
         .await?;
     let timetable = timetable_api_result.json::<serde_json::Value>().await?;
 
-    import_timetable(&state.db, &msg.chat.id.to_string(), timetable).await?;
+    import_timetable(&state.db, msg.chat.id.0, timetable).await?;
     state.redis.clear_timetable_entries(msg.chat.id)?;
 
     let new_msg = bot

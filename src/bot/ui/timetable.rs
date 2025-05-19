@@ -73,7 +73,7 @@ pub fn week_view(entries: Vec<TimetableEntryModel>) -> String {
         response.push_str(&entry_row(&entry, false));
     }
     if response.is_empty() {
-        response = adapt_for_markdown("Схоже що на цей тиждень немає жодних пар. Спробуйте імпортувати розклад за допомогою команди /import\n".to_string());
+        response = adapt_for_markdown(&"Схоже що на цей тиждень немає жодних пар. Спробуйте імпортувати розклад за допомогою команди /import\n".to_string());
     }
     return response;
 }
@@ -99,12 +99,12 @@ pub fn edit_view(entries: Vec<TimetableEntryModel>) -> String {
 
 pub fn entry_view(entry: Option<TimetableEntryModel>) -> String {
     if entry.is_none() {
-        return adapt_for_markdown(format!("{}\n", random_response()));
+        return adapt_for_markdown(&format!("{}\n", random_response()));
     }
     let entry = entry.unwrap();
     let identifier = class_type_identifier(&entry.class_type);
     let time = entry.class_time.format("%H:%M").to_string();
-    adapt_for_markdown(format!(
+    adapt_for_markdown(&format!(
         "🔔 *> НАГАДУВАННЯ* < 🔔\n\n{} {}\nПочаток: {} {}\n\nПосилання на конференцію ⬇️",
         identifier,
         entry.class_name,
@@ -114,7 +114,7 @@ pub fn entry_view(entry: Option<TimetableEntryModel>) -> String {
 }
 
 pub fn update_link_view(entry: &TimetableEntryModel) -> String {
-    adapt_for_markdown(format!(
+    adapt_for_markdown(&format!(
         "Надішліть посилання для пари *{} {} {}*\n",
         class_type_identifier(&entry.class_type),
         entry.class_name,
@@ -141,7 +141,7 @@ fn entry_row(entry: &TimetableEntryModel, edit: bool) -> String {
         );
     }
     let formatted_time = entry.class_time.format("%H:%M").to_string();
-    adapt_for_markdown(format!(
+    adapt_for_markdown(&format!(
         "{} {} - {} {}\n",
         identifier, formatted_time, link, edit_link
     ))
@@ -157,7 +157,7 @@ fn entry_row_no_time(entry: &TimetableEntryModel) -> String {
     if let Some(entry_link) = &entry.link {
         link = format!("[{}]({})", short_name, entry_link);
     }
-    adapt_for_markdown(format!("{}", link))
+    adapt_for_markdown(&format!("{}", link))
 }
 
 pub fn class_type_identifier(class_type: &str) -> &str {

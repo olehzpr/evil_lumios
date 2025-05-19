@@ -6,8 +6,6 @@ use crate::models::stats::{FullStats, GambleModel, GroupMemberStat, GroupStats};
 use crate::models::user::UserStatsModel;
 
 pub async fn get_user_stats(pool: &PgPool, user_id: UserId) -> anyhow::Result<UserStatsModel> {
-    let user_account_id_str = user_id.to_string();
-
     let stats = sqlx::query(
         r#"
         SELECT us.id, us.user_id, us.balance, us.daily_limit, us.daily_used
@@ -16,12 +14,12 @@ pub async fn get_user_stats(pool: &PgPool, user_id: UserId) -> anyhow::Result<Us
         WHERE u.account_id = $1
         "#,
     )
-    .bind(&user_account_id_str)
+    .bind(user_id.0 as i64)
     .fetch_optional(pool)
     .await
     .context(format!(
         "Failed to query user stats for account_id: {}",
-        user_account_id_str
+        user_id
     ))?
     .map(|row| UserStatsModel {
         id: row.get("id"),
@@ -30,19 +28,12 @@ pub async fn get_user_stats(pool: &PgPool, user_id: UserId) -> anyhow::Result<Us
         daily_limit: row.get("daily_limit"),
         daily_used: row.get("daily_used"),
     })
-    .ok_or_else(|| {
-        anyhow::anyhow!(
-            "User stats not found for account_id: {}",
-            user_account_id_str
-        )
-    })?;
+    .ok_or_else(|| anyhow::anyhow!("User stats not found for account_id: {}", user_id))?;
 
     Ok(stats)
 }
 
 pub async fn get_full_me(pool: &PgPool, user_id: UserId) -> anyhow::Result<FullStats> {
-    let user_account_id_str = user_id.to_string();
-
     let stats_row = sqlx::query(
         r#"
         SELECT us.id, us.user_id, us.balance, us.daily_limit, us.daily_used
@@ -51,7 +42,7 @@ pub async fn get_full_me(pool: &PgPool, user_id: UserId) -> anyhow::Result<FullS
         WHERE u.account_id = $1
         "#,
     )
-    .bind(user_account_id_str.clone())
+    .bind(user_id.0 as i64)
     .fetch_optional(pool)
     .await
     .context("Failed to query user stats")?;
@@ -64,12 +55,7 @@ pub async fn get_full_me(pool: &PgPool, user_id: UserId) -> anyhow::Result<FullS
             daily_limit: row.get("daily_limit"),
             daily_used: row.get("daily_used"),
         })
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "User stats not found for account_id: {}",
-                user_account_id_str
-            )
-        })?;
+        .ok_or_else(|| anyhow::anyhow!("User stats not found for account_id: {}", user_id))?;
 
     let gamble_rows = sqlx::query(
         r#"
@@ -88,7 +74,7 @@ pub async fn get_full_me(pool: &PgPool, user_id: UserId) -> anyhow::Result<FullS
         ORDER BY g.created_at ASC
         "#,
     )
-    .bind(user_account_id_str)
+    .bind(user_id.0 as i64)
     .fetch_all(pool)
     .await
     .context("Failed to query user gambles")?;

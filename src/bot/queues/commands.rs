@@ -18,13 +18,7 @@ pub async fn queue(bot: Bot, msg: Message, state: State) -> HandlerResult {
     let new_queue =
         create_queue(&state.db, &name, msg.chat.id, loading_msg.id, None, false).await?;
 
-    bot.edit_regular_queue(
-        loading_msg.chat.id,
-        loading_msg.id,
-        new_queue.id,
-        &ui::queue::start_message(name, ui::queue::QueueType::Regular),
-    )
-    .await;
+    bot.edit_queue(new_queue, Vec::new()).await;
 
     delete_message!(state, msg);
     Ok(())
@@ -45,13 +39,7 @@ pub async fn mixed(bot: Bot, msg: Message, state: State) -> HandlerResult {
     )
     .await?;
 
-    bot.edit_mixed_queue(
-        loading_msg.chat.id,
-        loading_msg.id,
-        new_queue.id,
-        &ui::queue::start_message(name, ui::queue::QueueType::Mixed),
-    )
-    .await;
+    bot.edit_queue(new_queue, Vec::new()).await;
 
     delete_message!(state, msg);
     Ok(())
@@ -64,13 +52,7 @@ pub async fn priority_queue(bot: Bot, msg: Message, state: State) -> HandlerResu
 
     let new_queue = create_queue(&state.db, &name, msg.chat.id, loading_msg.id, None, true).await?;
 
-    bot.edit_priority_queue(
-        loading_msg.chat.id,
-        loading_msg.id,
-        new_queue.id,
-        &ui::queue::start_message(name, ui::queue::QueueType::Priority),
-    )
-    .await;
+    bot.edit_queue(new_queue, Vec::new()).await;
 
     delete_message!(state, msg);
     Ok(())
@@ -78,7 +60,7 @@ pub async fn priority_queue(bot: Bot, msg: Message, state: State) -> HandlerResu
 
 async fn loading_message(bot: &Bot, chat_id: ChatId) -> anyhow::Result<Message> {
     let msg = bot
-        .send_message(chat_id, "Створення нової черги...")
+        .send_message(chat_id, ui::queue::title(&"Нова черга".to_string()))
         .await?;
 
     Ok(msg)

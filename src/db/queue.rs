@@ -22,8 +22,8 @@ pub async fn create_queue(
         "#,
     )
     .bind(title)
-    .bind(chat_id.to_string())
-    .bind(message_id.to_string())
+    .bind(chat_id.0)
+    .bind(message_id.0)
     .bind(is_mixed)
     .bind(is_priority)
     .fetch_one(pool)
@@ -45,8 +45,6 @@ pub async fn create_queue(
 }
 
 pub async fn get_all_queues(pool: &PgPool, chat_id: ChatId) -> anyhow::Result<Vec<QueueModel>> {
-    let chat_id_str = chat_id.to_string();
-
     let queues = sqlx::query(
         r#"
         SELECT id, title, chat_id, message_id, is_mixed, is_priority, is_deleted, created_at
@@ -54,7 +52,7 @@ pub async fn get_all_queues(pool: &PgPool, chat_id: ChatId) -> anyhow::Result<Ve
         WHERE chat_id = $1 AND is_deleted = FALSE
         "#,
     )
-    .bind(&chat_id_str)
+    .bind(chat_id.0)
     .fetch_all(pool)
     .await
     .context("Failed to query all queues")?
@@ -99,9 +97,6 @@ pub async fn get_queue(
     chat_id: ChatId,
     message_id: MessageId,
 ) -> anyhow::Result<QueueModel> {
-    let chat_id_str = chat_id.to_string();
-    let message_id_str = message_id.to_string();
-
     let queue = sqlx::query(
         r#"
         SELECT id, title, chat_id, message_id, is_mixed, is_priority, is_deleted, created_at
@@ -109,8 +104,8 @@ pub async fn get_queue(
         WHERE chat_id = $1 AND message_id = $2 AND is_deleted = FALSE
         "#,
     )
-    .bind(&chat_id_str)
-    .bind(&message_id_str)
+    .bind(chat_id.0)
+    .bind(message_id.0)
     .fetch_optional(pool)
     .await
     .context("Failed to query queue")?
@@ -162,6 +157,7 @@ pub async fn shuffle_queue(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
         .await
         .context("Failed to begin transaction for shuffle")?;
 
+    // Fetch all users in the queue
     let mut all_users = sqlx::query(
         r#"
         SELECT id, position, priority, is_frozen, queue_id, user_id
@@ -185,10 +181,23 @@ pub async fn shuffle_queue(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
     })
     .collect::<Vec<_>>();
 
+    // If queue is empty, just set is_mixed to true and return
     if all_users.is_empty() {
-        tx.rollback()
+        sqlx::query(
+            r#"
+            UPDATE queues
+            SET is_mixed = true
+            WHERE id = $1
+            "#,
+        )
+        .bind(queue_id)
+        .execute(&mut *tx)
+        .await
+        .context("Failed to update queue is_mixed flag")?;
+
+        tx.commit()
             .await
-            .context("Failed to rollback empty shuffle transaction")?;
+            .context("Failed to commit empty shuffle transaction")?;
         return Ok(());
     }
 
@@ -210,6 +219,18 @@ pub async fn shuffle_queue(pool: &PgPool, queue_id: i32) -> anyhow::Result<()> {
         .await
         .context("Failed to update queue user position")?;
     }
+
+    sqlx::query(
+        r#"
+        UPDATE queues
+        SET is_mixed = true
+        WHERE id = $1
+        "#,
+    )
+    .bind(queue_id)
+    .execute(&mut *tx)
+    .await
+    .context("Failed to update queue is_mixed flag")?;
 
     tx.commit()
         .await
@@ -519,15 +540,16 @@ pub async fn order_by_priority(pool: &PgPool, queue_id: i32) -> anyhow::Result<(
     Ok(())
 }
 
-pub async fn leave_from_priority_queue(
+pub async fn skip_priority_queue(
     pool: &PgPool,
     queue_id: i32,
     user_id: i32,
+    done: bool,
 ) -> anyhow::Result<()> {
     let mut tx = pool
         .begin()
         .await
-        .context("Failed to begin transaction for leaving priority queue")?;
+        .context("Failed to begin transaction for skipping in priority queue")?;
 
     let queue_user = sqlx::query(
         r#"
@@ -540,7 +562,7 @@ pub async fn leave_from_priority_queue(
     .bind(user_id)
     .fetch_optional(&mut *tx)
     .await
-    .context("Failed to query user to leave priority queue")?;
+    .context("Failed to query user to skip in priority queue")?;
 
     let queue_user = match queue_user {
         Some(row) => QueueUserModel {
@@ -553,31 +575,35 @@ pub async fn leave_from_priority_queue(
         },
         None => {
             tx.rollback().await.context(
-                "Failed to rollback leave priority queue transaction (user not in queue)",
+                "Failed to rollback skip priority queue transaction (user not in queue)",
             )?;
             return Ok(());
         }
     };
 
-    let original_priority = queue_user.priority;
     let user_position = queue_user.position;
 
-    let delete_result = sqlx::query(
+    let max_position_row = sqlx::query(
         r#"
-        DELETE FROM queue_users
-        WHERE id = $1
+        SELECT MAX(position) as max_pos
+        FROM queue_users
+        WHERE queue_id = $1
         "#,
     )
-    .bind(queue_user.id)
-    .execute(&mut *tx)
+    .bind(queue_id)
+    .fetch_one(&mut *tx)
     .await
-    .context("Failed to delete queue user during leave operation")?;
+    .context("Failed to get max position for skip operation")?;
 
-    if delete_result.rows_affected() == 0 {
-        tx.rollback()
+    let max_position = max_position_row
+        .get::<Option<i32>, _>("max_pos")
+        .unwrap_or(0);
+
+    if user_position == max_position {
+        tx.commit()
             .await
-            .context("Failed to rollback leave priority queue transaction (delete failed)")?;
-        bail!("Failed to delete user from queue during leave operation");
+            .context("Failed to commit skip priority queue transaction (no change needed)")?;
+        return Ok(());
     }
 
     sqlx::query(
@@ -591,43 +617,38 @@ pub async fn leave_from_priority_queue(
     .bind(user_position)
     .execute(&mut *tx)
     .await
-    .context("Failed to decrement queue positions after removing user")?;
+    .context("Failed to shift queue positions during skip operation")?;
 
-    if let Some(_) = original_priority {
-        let max_position_row = sqlx::query(
-            r#"
-            SELECT MAX(position) as max_pos
-            FROM queue_users
-            WHERE queue_id = $1
-            "#,
-        )
-        .bind(queue_id)
-        .fetch_one(&mut *tx)
-        .await
-        .context("Failed to get max position after deletion for queue")?;
-
-        let next_position = max_position_row
-            .get::<Option<i32>, _>("max_pos")
-            .unwrap_or(0)
-            + 1;
-
+    let update_query = if done {
         sqlx::query(
             r#"
-            INSERT INTO queue_users (queue_id, user_id, priority, position, is_frozen)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, queue_id, user_id, priority, position, is_frozen
+            UPDATE queue_users
+            SET position = $1, priority = COALESCE(priority, 0) + 1
+            WHERE id = $2
             "#,
         )
-        .bind(queue_id)
-        .bind(next_position)
-        .fetch_one(&mut *tx)
+        .bind(max_position)
+        .bind(queue_user.id)
+    } else {
+        sqlx::query(
+            r#"
+            UPDATE queue_users
+            SET position = $1
+            WHERE id = $2
+            "#,
+        )
+        .bind(max_position)
+        .bind(queue_user.id)
+    };
+
+    update_query
+        .execute(&mut *tx)
         .await
-        .context("Failed to re-insert user into queue with incremented priority")?;
-    }
+        .context("Failed to move user to last position during skip operation")?;
 
     tx.commit()
         .await
-        .context("Failed to commit leave priority queue transaction")?;
+        .context("Failed to commit skip priority queue transaction")?;
 
     Ok(())
 }
@@ -636,8 +657,8 @@ pub async fn freeze_user(pool: &PgPool, queue_id: i32, user_id: i32) -> anyhow::
     let result = sqlx::query(
         r#"
         UPDATE queue_users
-        SET is_frozen = $1
-        WHERE queue_id = $2 AND user_id = $3
+        SET is_frozen = NOT is_frozen
+        WHERE queue_id = $1 AND user_id = $2
         "#,
     )
     .bind(queue_id)

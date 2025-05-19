@@ -20,6 +20,7 @@ pub enum Callback {
     ShuffleQueue(i32),
     FreezeQueue(i32),
     SkipQueue(i32),
+    DoneQueue(i32),
 }
 
 impl Callback {
@@ -62,6 +63,10 @@ impl Callback {
                 let queue_id = queue_id.parse().ok()?;
                 Some(Callback::SkipQueue(queue_id))
             }
+            ["done-queue", queue_id] => {
+                let queue_id = queue_id.parse().ok()?;
+                Some(Callback::DoneQueue(queue_id))
+            }
             _ => None,
         }
     }
@@ -96,6 +101,9 @@ pub async fn handle_callback(bot: Bot, state: State, q: CallbackQuery) -> Handle
         }
         Some(Callback::SkipQueue(queue_id)) => {
             queue::skip_queue(bot, state, queue_id, q).await?;
+        }
+        Some(Callback::DoneQueue(queue_id)) => {
+            queue::done_queue(bot, state, queue_id, q).await?;
         }
         None => {
             bot.answer_callback_query(q.id).await?;

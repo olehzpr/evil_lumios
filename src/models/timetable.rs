@@ -5,7 +5,7 @@ use sqlx::FromRow;
 #[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct TimetableModel {
     pub id: i32,
-    pub chat_id: String,
+    pub chat_id: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, FromRow, Serialize, Deserialize)]

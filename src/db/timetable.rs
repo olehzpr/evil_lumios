@@ -13,11 +13,7 @@ use crate::{
 
 const OFFSET: chrono::Duration = chrono::Duration::minutes(5);
 
-pub async fn import_timetable(
-    pool: &PgPool,
-    chat_id: &str,
-    timetable: Value,
-) -> anyhow::Result<()> {
+pub async fn import_timetable(pool: &PgPool, chat_id: i64, timetable: Value) -> anyhow::Result<()> {
     let mut tx = pool.begin().await.context("Failed to begin transaction")?;
 
     let existing_timetable = sqlx::query(

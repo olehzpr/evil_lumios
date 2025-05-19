@@ -12,18 +12,11 @@ pub async fn create_user_if_not_exists(
     chat: &teloxide::types::Chat,
 ) -> anyhow::Result<()> {
     let pool: &PgPool = &state.db;
-    let user_account_id_str = user.id.to_string();
 
-    tracing::debug!(
-        "Checking if user with account_id {} exists",
-        user_account_id_str
-    );
+    tracing::debug!("Checking if user with account_id {} exists", user.id);
 
     if state.redis.get_user(user.id).is_ok() {
-        tracing::debug!(
-            "User with account_id {} already exists in cache",
-            user_account_id_str
-        );
+        tracing::debug!("User with account_id {} already exists in cache", user.id);
         return Ok(());
     }
 
@@ -34,7 +27,7 @@ pub async fn create_user_if_not_exists(
         WHERE account_id = $1
         "#,
     )
-    .bind(&user_account_id_str)
+    .bind(user.id.0 as i64)
     .persistent(true)
     .fetch_optional(pool)
     .await
@@ -43,16 +36,13 @@ pub async fn create_user_if_not_exists(
     if let Some(existing_user) = existing_user {
         tracing::debug!(
             "User with account_id {} already exists in database",
-            user_account_id_str
+            user.id
         );
         state.redis.store_user(existing_user)?;
         return Ok(());
     }
 
-    tracing::debug!(
-        "New user with account_id {} will be created",
-        user_account_id_str
-    );
+    tracing::debug!("New user with account_id {} will be created", user.id);
 
     let mut tx = pool.begin().await.context("Failed to begin transaction")?;
 
@@ -64,8 +54,8 @@ pub async fn create_user_if_not_exists(
         "#,
     )
     .bind(user.username.clone().unwrap_or_default())
-    .bind(&user_account_id_str)
-    .bind(chat.id.to_string())
+    .bind(user.id.0 as i64)
+    .bind(chat.id.0)
     .bind(user.first_name.clone())
     .persistent(true)
     .fetch_one(&mut *tx)
@@ -100,7 +90,6 @@ pub async fn create_user_if_not_exists(
 
 pub async fn get_user_by_account_id(state: &State, user_id: UserId) -> anyhow::Result<UserModel> {
     let pool: &PgPool = &state.db;
-    let user_account_id_str = user_id.to_string();
 
     sqlx::query_as::<_, UserModel>(
         r#"
@@ -109,15 +98,12 @@ pub async fn get_user_by_account_id(state: &State, user_id: UserId) -> anyhow::R
         WHERE account_id = $1
         "#,
     )
-    .bind(&user_account_id_str)
+    .bind(user_id.0 as i64)
     .persistent(true)
     .fetch_optional(pool)
     .await
-    .context(format!(
-        "Failed to query user by account_id: {}",
-        user_account_id_str
-    ))?
-    .ok_or_else(|| anyhow::anyhow!("User with account_id {} not found", user_account_id_str))
+    .context(format!("Failed to query user by account_id: {}", user_id))?
+    .ok_or_else(|| anyhow::anyhow!("User with account_id {} not found", user_id))
 }
 
 pub async fn get_user_by_id(state: &State, user_id: i32) -> anyhow::Result<UserModel> {

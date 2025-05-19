@@ -29,7 +29,7 @@ pub async fn show_gamble_result(bot: Arc<Bot>, state: State, event: Event) -> an
     } else {
         ui::stats::generate_lose_message(gamble.bet, gamble.bet + gamble.change)
     };
-    let message_id = MessageId(gamble.message_id.parse().unwrap());
+    let message_id = MessageId(gamble.message_id);
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(8)).await;
         bot.edit_message_caption(chat_id, message_id)

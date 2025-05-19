@@ -5,7 +5,7 @@ use sqlx::prelude::FromRow;
 pub struct GambleModel {
     pub id: i32,
     pub user_id: i32,
-    pub message_id: String,
+    pub message_id: i32,
     pub gamble_type: String,
     pub bet: i32,
     pub change: i32,

@@ -5,8 +5,8 @@ use sqlx::FromRow;
 pub struct UserModel {
     pub id: i32,
     pub username: String,
-    pub account_id: String,
-    pub chat_id: String,
+    pub account_id: i64,
+    pub chat_id: i64,
     pub name: String,
 }
 

@@ -11,12 +11,11 @@ pub async fn create_chat_if_not_exists(
     chat: &teloxide::types::Chat,
 ) -> anyhow::Result<()> {
     let pool: &PgPool = &state.db;
-    let chat_id_str = chat.id.to_string();
 
-    tracing::debug!("Checking if chat with id {} exists", chat_id_str);
+    tracing::debug!("Checking if chat with id {} exists", chat.id);
 
     if state.redis.get_chat(chat.id).is_ok() {
-        tracing::debug!("Chat with id {} already exists in cache", chat_id_str);
+        tracing::debug!("Chat with id {} already exists in cache", chat.id);
         return Ok(());
     }
 
@@ -27,10 +26,10 @@ pub async fn create_chat_if_not_exists(
         WHERE chat_id = $1
         "#,
     )
-    .bind(&chat_id_str)
+    .bind(chat.id.0)
     .fetch_optional(pool)
     .await
-    .context(format!("Failed to query chat by chat_id: {}", chat_id_str))?;
+    .context(format!("Failed to query chat by chat_id: {}", chat.id))?;
 
     let existing_chat = existing_chat.map(|row| ChatModel {
         id: row.get("id"),
@@ -41,13 +40,13 @@ pub async fn create_chat_if_not_exists(
     });
 
     if let Some(existing_chat) = existing_chat {
-        tracing::debug!("Chat with id {} already exists in database", chat_id_str);
+        tracing::debug!("Chat with id {} already exists in database", chat.id);
 
         state.redis.store_chat(existing_chat)?;
         return Ok(());
     }
 
-    tracing::debug!("New chat with id {} will be created", chat_id_str);
+    tracing::debug!("New chat with id {} will be created", chat.id);
 
     let new_chat = sqlx::query(
         r#"
@@ -56,16 +55,13 @@ pub async fn create_chat_if_not_exists(
         RETURNING id, chat_id, group_id, title, description
         "#,
     )
-    .bind(&chat_id_str)
+    .bind(&chat.id.0)
     .bind(None::<String>)
     .bind(chat.title().unwrap_or_default().to_owned())
     .bind(chat.description().map(|desc| desc.to_string()))
     .fetch_one(pool)
     .await
-    .context(format!(
-        "Failed to insert new chat with id: {}",
-        chat_id_str
-    ))?;
+    .context(format!("Failed to insert new chat with id: {}", chat.id))?;
 
     let new_chat = ChatModel {
         id: new_chat.get("id"),
@@ -102,7 +98,7 @@ pub async fn get_chat_ids(pool: &PgPool) -> anyhow::Result<Vec<ChatId>> {
             title: row.get("title"),
             description: row.get("description"),
         })
-        .filter_map(|chat| chat.chat_id.parse::<i64>().ok().map(ChatId))
+        .filter_map(|chat| Some(ChatId(chat.chat_id)))
         .collect();
 
     Ok(chat_ids)

@@ -1,4 +1,4 @@
-pub fn adapt_for_markdown(msg: String) -> String {
+pub fn adapt_for_markdown(msg: &String) -> String {
     msg.replace("_", "\\_")
         .replace("~", "\\~")
         .replace(">", "\\>")
@@ -10,4 +10,5 @@ pub fn adapt_for_markdown(msg: String) -> String {
         .replace("{", "\\{")
         .replace("}", "\\}")
         .replace(".", "\\.")
+        .replace("!", "\\!")
 }
