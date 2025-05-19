@@ -12,7 +12,7 @@ pub async fn insert_gamble(pool: &PgPool, gamble: GambleDto) -> anyhow::Result<G
         "#,
     )
     .bind(gamble.user_id)
-    .bind(gamble.message_id.to_string())
+    .bind(gamble.message_id.0)
     .bind(gamble.is_win)
     .bind(gamble.change)
     .bind(gamble.bet)
