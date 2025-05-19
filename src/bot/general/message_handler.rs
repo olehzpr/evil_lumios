@@ -6,7 +6,10 @@ use teloxide::{
 };
 
 use crate::{
-    bot::handler::HandlerResult, clients::gemini::send_to_gemini, redis::RedisCache, state::State,
+    bot::{handler::HandlerResult, ui::utils::adapt_for_markdown},
+    clients::gemini::send_to_gemini,
+    redis::RedisCache,
+    state::State,
 };
 
 pub async fn handler(bot: Bot, msg: Message, state: State) -> HandlerResult {
@@ -41,7 +44,7 @@ async fn handle_gemini_mention(bot: &Bot, msg: &Message) -> HandlerResult {
     }
 
     let response = send_to_gemini(&cleaned_text).await?;
-    bot.send_message(msg.chat.id, response)
+    bot.send_message(msg.chat.id, adapt_for_markdown(&response))
         .reply_parameters(ReplyParameters::new(msg.id))
         .await?;
 
