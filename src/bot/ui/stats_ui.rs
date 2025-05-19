@@ -77,7 +77,7 @@ pub fn group_stats(group_stats: GroupStats) -> String {
     for stat in group_stats.stats {
         result.push_str(&format!(
             "{:width$} {:>5}\n",
-            stat.username + ":",
+            adapt_for_markdown(&stat.username) + ":",
             stat.balance,
             width = longest_username
         ));
