@@ -50,7 +50,7 @@ pub async fn create_chat_if_not_exists(
     let new_chat = sqlx::query(
         r#"
         INSERT INTO chats (chat_id, title, description)
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3)
         RETURNING id, chat_id, title, description
         "#,
     )
